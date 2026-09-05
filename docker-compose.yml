@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS for spatial queries and relational data
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: sih-postgres
+    environment:
+      POSTGRES_USER: sih_user
+      POSTGRES_PASSWORD: sih_password
+      POSTGRES_DB: sih_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Neo4j for graph-based route calculation
+  neo4j:
+    image: neo4j:5
+    container_name: sih-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/sih_password
+      # Needs APOC for graph algorithms (like Dijkstra)
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+    ports:
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
+
+  # MongoDB for unstructured field reports and images
+  mongodb:
+    image: mongo:6
+    container_name: sih-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  # Redis for caching live locations and weather API responses
+  redis:
+    image: redis:7-alpine
+    container_name: sih-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  mongodb_data:
+  redis_data:

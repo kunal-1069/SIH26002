@@ -6,3 +6,5 @@ build/
 .env.local
 __pycache__/
 *.pkl
+.venv/
+checkpoints/

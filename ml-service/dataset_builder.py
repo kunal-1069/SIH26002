@@ -9,7 +9,7 @@ import pandas as pd
 import os
 
 def calculate_landslide_physics_prob(slope_deg, rainfall_24h_mm, rainfall_72h_mm, 
-                                     soil_clay_percent, vegetation_ndvi, historical_incidents, road_quality):
+                                     soil_clay_percent, vegetation_ndvi, historical_incidents, road_quality, soil_moisture_index):
     """
     Computes theoretical landslide probability using infinite slope stability proxy:
     Factor of Safety (FoS) decreases with slope steepness, pore water pressure (accumulated rain),
@@ -24,6 +24,9 @@ def calculate_landslide_physics_prob(slope_deg, rainfall_24h_mm, rainfall_72h_mm
     # Soil cohesion & shear strength: high clay (>35%) softens rapidly under high pore pressure
     soil_term = (soil_clay_percent / 100.0) * 0.4
     
+    # Moisture term
+    moisture_term = soil_moisture_index * 0.4
+    
     # Root reinforcement mitigation from vegetation (NDVI)
     veg_mitigation = (1.0 - vegetation_ndvi) * 0.35
     
@@ -32,12 +35,13 @@ def calculate_landslide_physics_prob(slope_deg, rainfall_24h_mm, rainfall_72h_mm
     quality_mitigation = ((5 - road_quality) / 5.0) * 0.25
 
     # Composite latent log-odds
-    latent = (0.35 * slope_term + 
-              0.35 * rain_term + 
+    latent = (0.25 * slope_term + 
+              0.25 * rain_term + 
+              0.20 * moisture_term +
               0.10 * soil_term + 
               0.10 * veg_mitigation + 
-              0.10 * history_factor +
-              0.10 * quality_mitigation)
+              0.05 * history_factor +
+              0.05 * quality_mitigation)
     
     # Sigmoidal calibration with natural stochastic variance
     prob = 1.0 / (1.0 + np.exp(-10.0 * (latent - 0.48)))
@@ -45,7 +49,7 @@ def calculate_landslide_physics_prob(slope_deg, rainfall_24h_mm, rainfall_72h_mm
 
 
 def calculate_flood_physics_prob(elevation_m, distance_to_river_m, rainfall_1h_mm, 
-                                 rainfall_24h_mm, road_quality, soil_clay_percent):
+                                 rainfall_24h_mm, road_quality, soil_clay_percent, soil_moisture_index):
     """
     Computes flood / waterlogging probability based on hydrological catchment characteristics:
     Low elevation basins (Brahmaputra plains < 120m), proximity to rivers, intense rainfall,
@@ -64,9 +68,12 @@ def calculate_flood_physics_prob(elevation_m, distance_to_river_m, rainfall_1h_m
     drainage_deficit = ((5 - road_quality) / 5.0) * 0.3
     runoff_factor = (soil_clay_percent / 100.0) * 0.2
     
-    latent = (0.32 * elevation_term + 
+    moisture_term = soil_moisture_index * 0.3
+    
+    latent = (0.22 * elevation_term + 
               0.28 * river_term + 
               0.30 * rain_term + 
+              0.10 * moisture_term +
               0.10 * (drainage_deficit + runoff_factor))
     
     prob = 1.0 / (1.0 + np.exp(-9.0 * (latent - 0.44)))
@@ -130,13 +137,16 @@ def generate_ner_hazard_dataset(n_samples=3000, random_state=42):
     
     road_quality = np.random.choice([1, 2, 3, 4, 5], size=n_samples, p=[0.12, 0.22, 0.32, 0.22, 0.12])
     
+    # Generate soil moisture
+    soil_moisture = np.clip(rain_72h / 300.0 + np.random.uniform(0.1, 0.4, n_samples), 0.1, 0.95)
+    
     # Calculate ground-truth probabilities
     p_landslide = calculate_landslide_physics_prob(
-        slopes, rain_24h, rain_72h, soil_clay, ndvi, historical_incidents, road_quality
+        slopes, rain_24h, rain_72h, soil_clay, ndvi, historical_incidents, road_quality, soil_moisture
     )
     
     p_flood = calculate_flood_physics_prob(
-        elevations, river_dists, rain_1h, rain_24h, road_quality, soil_clay
+        elevations, river_dists, rain_1h, rain_24h, road_quality, soil_clay, soil_moisture
     )
     
     # Stochastic occurrence labels based on probability
@@ -173,6 +183,7 @@ def generate_ner_hazard_dataset(n_samples=3000, random_state=42):
         'rainfall_24h_mm': np.round(rain_24h, 1),
         'rainfall_72h_mm': np.round(rain_72h, 1),
         'soil_clay_percent': np.round(soil_clay, 1),
+        'soil_moisture_index': np.round(soil_moisture, 3),
         'distance_to_river_m': np.round(river_dists, 1),
         'vegetation_ndvi': np.round(ndvi, 3),
         'historical_incidents': historical_incidents,

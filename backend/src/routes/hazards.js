@@ -142,90 +142,86 @@ const REGIONAL_HOTSPOTS = [
   }
 ];
 
-// Helper to fetch live weather telemetry
+const weatherCache = {};
+const CACHE_TTL_MS = 30000; // 30 seconds
+
+// Helper to fetch live weather telemetry exactly as requested by user
 async function fetchLiveWeather(lat = 26.1445, lng = 91.7362) {
+  const cacheKey = `${lat.toFixed(2)}_${lng.toFixed(2)}`;
+  if (weatherCache[cacheKey] && (Date.now() - weatherCache[cacheKey].timestamp < CACHE_TTL_MS)) {
+    return weatherCache[cacheKey].data;
+  }
+
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=precipitation`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const weathercode = data.current_weather?.weathercode || 0;
-    const precipArr = data.hourly?.precipitation || [];
-    
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=temperature_2m,precipitation`;
+    const soilUrl = `https://api.open-meteo.com/v1/era5?latitude=${lat}&longitude=${lng}&hourly=soil_moisture_0_7cm`;
+
+    const [weatherRes, soilRes] = await Promise.all([
+      fetch(weatherUrl),
+      fetch(soilUrl).catch(() => null)
+    ]);
+
+    const weatherData = await weatherRes.json();
+    const soilData = soilRes ? await soilRes.json() : null;
+
+    const precipArr = weatherData.hourly?.precipitation || [];
+    const moistureArr = soilData?.hourly?.soil_moisture_0_7cm || [];
+
     // Sum hourly precipitation for last 24h approximation
     const rain24h = precipArr.slice(0, 24).reduce((sum, val) => sum + (val || 0), 0);
-    const rain1h = precipArr[0] || (weathercode >= 60 ? 12 : 2);
+    const rain1h = precipArr[0] || 0;
+    const soilMoisture = moistureArr[0] || 0.45; // Default if ERA5 fails
 
-    // Weather severity index 0-10
+    // Weather severity index based on precipitation
     let severity = 2;
-    if (weathercode >= 95) severity = 10;
-    else if (weathercode >= 80) severity = 8;
-    else if (weathercode >= 61) severity = 7;
-    else if (weathercode >= 51) severity = 5;
-    else if (weathercode === 45 || weathercode === 48) severity = 4;
+    if (rain1h > 15) severity = 10;
+    else if (rain1h > 8) severity = 8;
+    else if (rain1h > 4) severity = 7;
+    else if (rain1h > 1) severity = 5;
 
-    return {
+    const result = {
       severity,
-      rain1h: Math.max(rain1h, severity * 3.5),
-      rain24h: Math.max(rain24h, severity * 12.0),
-      rain72h: Math.max(rain24h * 2.1, severity * 22.0)
+      rain1h: Number(rain1h.toFixed(1)),
+      rain24h: Number(rain24h.toFixed(1)),
+      rain72h: Number((rain24h * 2.1).toFixed(1)),
+      soilMoisture: Number(soilMoisture.toFixed(2)),
+      lastUpdated: new Date().toISOString()
     };
+
+    weatherCache[cacheKey] = {
+      timestamp: Date.now(),
+      data: result
+    };
+
+    return result;
   } catch (err) {
-    console.error("Live weather fetch failed, using fallback:", err.message);
-    return { severity: 6, rain1h: 18.0, rain24h: 75.0, rain72h: 140.0 };
+    console.error(`Live weather fetch failed for ${lat},${lng}, using fallback:`, err.message);
+    return { severity: 6, rain1h: 18.0, rain24h: 75.0, rain72h: 140.0, soilMoisture: 0.50, lastUpdated: new Date().toISOString() };
   }
-}
-
-// Function to generate dynamic live micro-station telemetry per hotspot
-function getLiveHotspotTelemetry(spot, baseWeather) {
-  // Use timestamp to simulate realistic continuous micro-telemetry fluctuations (e.g. AWS rain gauge & piezometer readings)
-  const now = Date.now() / 1000;
-  const hash = (spot.id || 'SNP').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const phase = (now / 10) + (hash % 17);
-  // Realistic environmental fluctuation (+/- 8% to 15%)
-  const fluctuation = Math.sin(phase) * 0.12;
-
-  let localRain1h = Math.max(1.0, (baseWeather.rain1h || 12.0) * (1 + fluctuation));
-  let localRain24h = Math.max(5.0, (baseWeather.rain24h || 60.0) * (1 + fluctuation * 0.6));
-  let localRain72h = Math.max(15.0, (baseWeather.rain72h || 120.0) * (1 + fluctuation * 0.4));
-
-  // High-precipitation hotspot micro-climates
-  if (spot.id === 'HOTSPOT_CHEP' || spot.id === 'HOTSPOT_SNP') {
-    localRain1h *= 1.35;
-    localRain24h *= 1.25;
-    localRain72h *= 1.30;
-  } else if (spot.id === 'HOTSPOT_KZR') {
-    localRain1h *= 1.15;
-    localRain24h *= 1.15;
-  }
-
-  const liveSoilClay = Math.min(60.0, Math.max(22.0, spot.soil_clay_percent + Math.sin(phase * 0.8) * 1.8));
-
-  return {
-    rain1h: Number(localRain1h.toFixed(1)),
-    rain24h: Number(localRain24h.toFixed(1)),
-    rain72h: Number(localRain72h.toFixed(1)),
-    soilClay: Number(liveSoilClay.toFixed(1)),
-    lastUpdated: new Date().toISOString()
-  };
 }
 
 // GET /api/hazards/locations - Returns all predicted landslide & flood locations
 router.get('/locations', async (req, res) => {
   try {
-    const weather = await fetchLiveWeather();
     const predictions = [];
+    let avgSeverity = 0;
+    let avgRain24h = 0;
 
     for (const spot of REGIONAL_HOTSPOTS) {
       try {
-        const spotTelemetry = getLiveHotspotTelemetry(spot, weather);
+        const spotWeather = await fetchLiveWeather(spot.lat, spot.lng);
+        avgSeverity += spotWeather.severity;
+        avgRain24h += spotWeather.rain24h;
+
         const mlPayload = {
           road_id: spot.id,
           slope_deg: spot.slope_deg,
           elevation_m: spot.elevation_m,
-          rainfall_1h_mm: spotTelemetry.rain1h,
-          rainfall_24h_mm: spotTelemetry.rain24h,
-          rainfall_72h_mm: spotTelemetry.rain72h,
-          soil_clay_percent: spotTelemetry.soilClay,
+          rainfall_1h_mm: spotWeather.rain1h,
+          rainfall_24h_mm: spotWeather.rain24h,
+          rainfall_72h_mm: spotWeather.rain72h,
+          soil_clay_percent: spot.soil_clay_percent, // baseline soil clay
+          soil_moisture_index: spotWeather.soilMoisture, // pass the real ERA5 moisture!
           distance_to_river_m: spot.distance_to_river_m,
           vegetation_ndvi: spot.vegetation_ndvi,
           historical_incidents: spot.historical_incidents,
@@ -300,10 +296,11 @@ router.get('/locations', async (req, res) => {
               elevationMeters: spot.elevation_m
             },
             telemetry: {
-              rainfall24hMm: spotTelemetry.rain24h,
-              rainfall1hMm: spotTelemetry.rain1h,
-              soilClayPercent: spotTelemetry.soilClay,
-              lastUpdated: spotTelemetry.lastUpdated,
+              rainfall24hMm: spotWeather.rain24h,
+              rainfall1hMm: spotWeather.rain1h,
+              soilClayPercent: spot.soil_clay_percent,
+              soilMoisture: spotWeather.soilMoisture,
+              lastUpdated: spotWeather.lastUpdated,
               status: 'STREAMING_LIVE'
             }
           });
@@ -317,8 +314,8 @@ router.get('/locations', async (req, res) => {
       timestamp: new Date().toISOString(),
       liveStreaming: true,
       weatherConditions: {
-        severityIndex: weather.severity,
-        rainfall24hMm: Math.round(weather.rain24h)
+        severityIndex: Math.round(avgSeverity / REGIONAL_HOTSPOTS.length),
+        rainfall24hMm: Math.round(avgRain24h / REGIONAL_HOTSPOTS.length)
       },
       totalLocations: predictions.length,
       landslidePredictedCount: predictions.filter(p => p.hazardType === 'LANDSLIDE' || p.hazardType === 'DUAL_HAZARD').length,

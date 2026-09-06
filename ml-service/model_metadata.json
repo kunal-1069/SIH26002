@@ -1,62 +1,45 @@
 {
   "version": "2.0.0-dual-hazard",
   "model_type": "Calibrated Ensemble (RandomForest + Multi-Task Regressors)",
-  "trained_at": "2026-09-06T08:02:15.848834Z",
-  "total_train_samples": 3202,
+  "trained_at": "2026-09-06T17:10:46.331905+00:00",
+  "total_train_samples": 3200,
   "metrics": {
     "landslide": {
-      "accuracy": 0.8113,
-      "roc_auc": 0.8777,
-      "precision": 0.798,
-      "recall": 0.5956,
-      "f1_score": 0.6821,
+      "accuracy": 0.8438,
+      "roc_auc": 0.8572,
+      "precision": 0.75,
+      "recall": 0.5079,
+      "f1_score": 0.6057,
       "feature_importances": {
-        "slope_deg": 0.2692,
-        "rainfall_24h_mm": 0.2418,
-        "rainfall_72h_mm": 0.2399,
-        "soil_clay_percent": 0.0871,
-        "vegetation_ndvi": 0.0898,
-        "historical_incidents": 0.0399,
-        "road_quality": 0.0323
+        "slope_deg": 0.2551,
+        "rainfall_24h_mm": 0.1907,
+        "rainfall_72h_mm": 0.1727,
+        "soil_clay_percent": 0.0944,
+        "soil_moisture_index": 0.1085,
+        "vegetation_ndvi": 0.1012,
+        "historical_incidents": 0.0469,
+        "road_quality": 0.0305
       }
     },
     "flood": {
-      "accuracy": 0.7775,
-      "roc_auc": 0.8333,
-      "precision": 0.6794,
-      "recall": 0.5613,
-      "f1_score": 0.6147,
+      "accuracy": 0.7488,
+      "roc_auc": 0.8213,
+      "precision": 0.625,
+      "recall": 0.4819,
+      "f1_score": 0.5442,
       "feature_importances": {
-        "elevation_m": 0.2844,
-        "distance_to_river_m": 0.187,
-        "rainfall_1h_mm": 0.1787,
-        "rainfall_24h_mm": 0.2094,
-        "road_quality": 0.0349,
-        "soil_clay_percent": 0.1056
+        "elevation_m": 0.2055,
+        "distance_to_river_m": 0.1794,
+        "rainfall_1h_mm": 0.1458,
+        "rainfall_24h_mm": 0.1971,
+        "road_quality": 0.034,
+        "soil_clay_percent": 0.1017,
+        "soil_moisture_index": 0.1366
       }
     },
     "risk_multiplier": {
-      "rmse": 0.2039,
-      "r2_score": 0.9527
+      "rmse": 0.2162,
+      "r2_score": 0.94
     }
-  },
-  "fine_tuning_history": [
-    {
-      "timestamp": "2026-09-06T08:02:31.188691+00:00",
-      "mode": "warm_start",
-      "new_samples_added": 1,
-      "total_samples": 3201,
-      "landslide_roc_auc": 0.8777,
-      "flood_roc_auc": 0.8333
-    },
-    {
-      "timestamp": "2026-09-06T08:17:46.788033+00:00",
-      "mode": "warm_start",
-      "new_samples_added": 1,
-      "total_samples": 3202,
-      "landslide_roc_auc": 0.8777,
-      "flood_roc_auc": 0.8333
-    }
-  ],
-  "last_fine_tuned": "2026-09-06T08:17:46.788052+00:00"
+  }
 }

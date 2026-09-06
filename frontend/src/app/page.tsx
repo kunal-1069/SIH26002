@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { APIProvider, Map, Marker, AdvancedMarker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import toast from 'react-hot-toast';
 
 // ALL 28 NODES ACROSS SEVEN SISTER STATES (+ SIKKIM)
 const SEVEN_SISTER_HUBS = [
@@ -61,6 +62,21 @@ const SEVEN_SISTER_STATES = [
   'Tripura',
   'Sikkim'
 ];
+
+const TrafficLayerComponent = ({ show }: { show: boolean }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const trafficLayer = new google.maps.TrafficLayer();
+    if (show) {
+      trafficLayer.setMap(map);
+    } else {
+      trafficLayer.setMap(null);
+    }
+    return () => trafficLayer.setMap(null);
+  }, [map, show]);
+  return null;
+};
 
 // Smooth Map Controller for Auto-Framing Routes & Locations
 const MapController: React.FC<{
@@ -286,6 +302,10 @@ export default function Dashboard() {
   const [isFineTuning, setIsFineTuning] = useState(false);
   const [fineTuneStatus, setFineTuneStatus] = useState('');
 
+  // Live Weather Tab
+  const [showWeatherTab, setShowWeatherTab] = useState(false);
+  const [liveWeatherHubs, setLiveWeatherHubs] = useState<any[]>([]);
+
   // Fetch nodes from backend
   const fetchNodes = async () => {
     try {
@@ -341,6 +361,19 @@ export default function Dashboard() {
         // If the new corridor has hazards, display BOTH so the user immediately sees the dangerous red route & detour!
         setRouteViewMode(data.hasHazard ? 'BOTH' : 'PRIMARY');
         setAcceptedSafeRoute(false);
+        
+        // Trigger Toast Alerts
+        if (data.hasHazard) {
+          toast.error(
+            <div>
+              <strong>Critical Hazard Detected!</strong><br />
+              <span style={{ fontSize: '0.85em' }}>Check map for red zones and detour.</span>
+            </div>,
+            { duration: 6000 }
+          );
+        } else {
+          toast.success("Route is clear of hazards", { duration: 3000 });
+        }
       }
     } catch (err) {
       console.error("Failed to calculate route:", err);
@@ -377,7 +410,21 @@ export default function Dashboard() {
     };
     fetchFleetData();
 
+    // Fetch regional weather for the new Weather Tab
+    const fetchRegionalWeather = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/weather/live');
+        if (res.ok) {
+          const data = await res.json();
+          setLiveWeatherHubs(data.cities || []);
+        }
+      } catch (_) {}
+    };
+    fetchRegionalWeather();
+
     const fleetInterval = setInterval(fetchFleetData, 10000);
+    // 20 minute polling for the Live Weather Tab as requested
+    const weatherTabInterval = setInterval(fetchRegionalWeather, 20 * 60 * 1000);
     // Poll hazard radar telemetry every 5 seconds so live sensor fluctuations stream in real time
     const hazardInterval = setInterval(fetchHazardLocations, 5000);
     // Poll active route telemetry every 6 seconds so route hazard percentages update live
@@ -414,6 +461,7 @@ export default function Dashboard() {
       clearInterval(fleetInterval);
       clearInterval(hazardInterval);
       clearInterval(routeTelemetryInterval);
+      clearInterval(weatherTabInterval);
     };
   }, []);
 
@@ -568,6 +616,16 @@ export default function Dashboard() {
     }
   };
 
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [emergencyMode, setEmergencyMode] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    setIsOffline(!navigator.onLine);
+    window.addEventListener('offline', () => setIsOffline(true));
+    window.addEventListener('online', () => setIsOffline(false));
+  }, []);
+
   return (
     <div style={{ height: '100vh', width: '100vw', margin: 0, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#0f172a' }}>
       
@@ -582,6 +640,14 @@ export default function Dashboard() {
                 <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
                   Seven Sisters Route Intelligence
                 </h1>
+                {isOffline && (
+                  <span style={{
+                    fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '12px',
+                    backgroundColor: '#7f1d1d', color: '#fca5a5', border: '1px solid #991b1b'
+                  }}>
+                    📶 OFFLINE MODE
+                  </span>
+                )}
                 <span style={{
                   fontSize: '0.65rem', fontWeight: 800, padding: '2px 7px', borderRadius: '12px',
                   backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #0284c7'
@@ -596,6 +662,49 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => {
+                setEmergencyMode(!emergencyMode);
+                if (!emergencyMode) toast.success('🚑 Emergency Mode Activated: Prioritizing rescue vehicles.');
+              }}
+              style={{
+                padding: '6px 12px', backgroundColor: emergencyMode ? '#ef4444' : '#1e293b', color: 'white',
+                border: emergencyMode ? '1px solid #ef4444' : '1px solid #475569', borderRadius: '6px', fontSize: '0.75rem',
+                fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              }}
+            >
+              <span>🚑</span> SOS Dispatch
+            </button>
+            <button
+              onClick={() => setShowTraffic(!showTraffic)}
+              style={{
+                padding: '6px 12px', backgroundColor: showTraffic ? '#ef4444' : '#f59e0b', color: 'white',
+                border: 'none', borderRadius: '6px', fontSize: '0.75rem',
+                fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              }}
+            >
+              <span>🚦</span> Live Traffic
+            </button>
+            <button
+              onClick={() => window.location.href = '/register'}
+              style={{
+                padding: '6px 12px', backgroundColor: '#10b981', color: 'white',
+                border: 'none', borderRadius: '6px', fontSize: '0.75rem',
+                fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              }}
+            >
+              <span>👤</span> Register
+            </button>
+            <button
+              onClick={() => setShowWeatherTab(true)}
+              style={{
+                padding: '6px 12px', backgroundColor: '#0284c7', color: 'white',
+                border: 'none', borderRadius: '6px', fontSize: '0.75rem',
+                fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'
+              }}
+            >
+              <span>⛅</span> Live Weather
+            </button>
             <button
               onClick={() => setShowModelModal(true)}
               style={{
@@ -1075,6 +1184,8 @@ export default function Dashboard() {
               }
             />
 
+            <TrafficLayerComponent show={showTraffic} />
+
             {/* DUAL ROUTE RENDERER: PRIMARY (RED) & SAFE DETOUR (GREEN) - 100% ROAD-SNAPPED */}
             {currentRoutePlan && (
               <DualRouteVisualizer
@@ -1280,6 +1391,33 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+
+              {/* LOGISTICS EFFICIENCY & ECONOMIC IMPACT METRICS */}
+              {currentRoutePlan.economicImpact && (
+                <div style={{
+                  padding: '9px 11px', borderRadius: '8px', marginBottom: '8px',
+                  backgroundColor: '#f8fafc', border: '1px solid #cbd5e1'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.78rem', color: '#0f172a', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '1rem' }}>📈</span>
+                    <span>Economic Impact & Efficiency</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+                    <div style={{ backgroundColor: 'white', padding: '4px 6px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 700 }}>Disruptions Prevented</div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: currentRoutePlan.hasHazard ? '#059669' : '#475569' }}>
+                        {currentRoutePlan.economicImpact.supplyDisruptionPrevented}
+                      </div>
+                    </div>
+                    <div style={{ backgroundColor: 'white', padding: '4px 6px', borderRadius: '5px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '0.58rem', color: '#64748b', fontWeight: 700 }}>Est. Cargo Value Saved</div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: currentRoutePlan.hasHazard ? '#16a34a' : '#475569' }}>
+                        ${currentRoutePlan.economicImpact.estimatedCargoValueSaved.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* LIVE CORRIDOR WEATHER TELEMETRY CARD */}
               {currentRoutePlan.weather && (
@@ -1578,6 +1716,49 @@ export default function Dashboard() {
                   {isFineTuning ? 'Fine-Tuning...' : 'Trigger Fine-Tuning Batch'}
                 </button>
                 {fineTuneStatus && <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#15803d', fontWeight: 700 }}>{fineTuneStatus}</div>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 9. LIVE WEATHER TAB MODAL */}
+        {showWeatherTab && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 3000,
+            display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)'
+          }}>
+            <div style={{
+              backgroundColor: '#0f172a', width: '90%', maxWidth: '650px',
+              borderRadius: '16px', padding: '1.5rem', color: 'white', border: '1px solid #334155',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #1e293b', paddingBottom: '10px' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#38bdf8' }}>⛅ Regional Live Weather</h2>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>Updates automatically every 20 minutes across Seven Sister hubs.</div>
+                </div>
+                <button onClick={() => setShowWeatherTab(false)} style={{ background: 'none', border: 'none', fontSize: '1.4rem', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                {liveWeatherHubs.map((city, idx) => (
+                  <div key={idx} style={{
+                    backgroundColor: '#1e293b', padding: '12px 16px', borderRadius: '8px', border: '1px solid #334155',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'white' }}>{city.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>{city.icon}</span> <span>{city.condition}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8' }}>{city.temp}°C</div>
+                      <div style={{ fontSize: '0.65rem', color: '#64748b' }}>Wind: {city.windspeed} km/h</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

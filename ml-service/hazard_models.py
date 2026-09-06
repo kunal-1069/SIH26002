@@ -23,6 +23,7 @@ LANDSLIDE_FEATURES = [
     'rainfall_24h_mm', 
     'rainfall_72h_mm', 
     'soil_clay_percent', 
+    'soil_moisture_index',
     'vegetation_ndvi', 
     'historical_incidents', 
     'road_quality'
@@ -34,7 +35,8 @@ FLOOD_FEATURES = [
     'rainfall_1h_mm', 
     'rainfall_24h_mm', 
     'road_quality', 
-    'soil_clay_percent'
+    'soil_clay_percent',
+    'soil_moisture_index'
 ]
 
 RISK_MULTIPLIER_FEATURES = [
@@ -44,6 +46,7 @@ RISK_MULTIPLIER_FEATURES = [
     'rainfall_24h_mm',
     'rainfall_72h_mm',
     'soil_clay_percent',
+    'soil_moisture_index',
     'distance_to_river_m',
     'vegetation_ndvi',
     'historical_incidents',
@@ -280,7 +283,8 @@ class DualHazardModelSystem:
         }
 
     def predict_legacy_risk(self, road_id, weather_severity, historical_incidents, road_quality,
-                            rainfall_1h_mm=None, rainfall_24h_mm=None, rainfall_72h_mm=None):
+                            rainfall_1h_mm=None, rainfall_24h_mm=None, rainfall_72h_mm=None,
+                            soil_moisture_index=None):
         """
         Backward-compatible prediction adapter for backend routing.js calls.
         Uses real physical rainfall when provided, or accurately calibrated meteorological thresholds.
@@ -336,6 +340,10 @@ class DualHazardModelSystem:
             effective_rain_24h = rain_24h
             effective_rain_72h = rain_72h
 
+        if soil_moisture_index is None:
+            # mock if not provided based on rain
+            soil_moisture_index = min(0.95, 0.2 + (effective_rain_24h / 200.0))
+
         params = {
             'slope_deg': slope_deg,
             'elevation_m': elevation_m,
@@ -343,6 +351,7 @@ class DualHazardModelSystem:
             'rainfall_24h_mm': effective_rain_24h,
             'rainfall_72h_mm': effective_rain_72h,
             'soil_clay_percent': soil_clay,
+            'soil_moisture_index': soil_moisture_index,
             'distance_to_river_m': dist_river,
             'vegetation_ndvi': ndvi,
             'historical_incidents': historical_incidents,
@@ -402,6 +411,7 @@ if __name__ == "__main__":
         'rainfall_24h_mm': 120.0,
         'rainfall_72h_mm': 280.0,
         'soil_clay_percent': 42.0,
+        'soil_moisture_index': 0.85,
         'distance_to_river_m': 180.0,
         'vegetation_ndvi': 0.32,
         'historical_incidents': 6,

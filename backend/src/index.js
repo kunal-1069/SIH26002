@@ -13,11 +13,15 @@ app.use(express.json());
 const fleetRoutes = require('./routes/fleet');
 const routingRoutes = require('./routes/routing');
 const hazardRoutes = require('./routes/hazards');
+const weatherRoutes = require('./routes/weather');
+const userRoutes = require('./routes/users');
 // const reportRoutes = require('./routes/reports');
 
 app.use('/api/fleet', fleetRoutes);
 app.use('/api/route', routingRoutes);
 app.use('/api/hazards', hazardRoutes);
+app.use('/api/weather', weatherRoutes);
+app.use('/api/users', userRoutes);
 // app.use('/api/reports', reportRoutes);
 
 app.get('/', (req, res) => {

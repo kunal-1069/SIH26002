@@ -28,6 +28,7 @@ class LegacyRiskRequest(BaseModel):
     rainfall_1h_mm: Optional[float] = None
     rainfall_24h_mm: Optional[float] = None
     rainfall_72h_mm: Optional[float] = None
+    soil_moisture_index: Optional[float] = None
 
 # Detailed Landslide Request Schema
 class LandslideRequest(BaseModel):
@@ -35,6 +36,7 @@ class LandslideRequest(BaseModel):
     rainfall_24h_mm: float = Field(..., ge=0, description="24-hour cumulative rainfall in mm")
     rainfall_72h_mm: float = Field(default=50.0, ge=0, description="72-hour antecedent rainfall in mm")
     soil_clay_percent: Optional[float] = Field(default=35.0, ge=0, le=100)
+    soil_moisture_index: float = Field(default=0.5, ge=0.0, le=1.0)
     vegetation_ndvi: Optional[float] = Field(default=0.50, ge=0.0, le=1.0)
     historical_incidents: Optional[int] = Field(default=2, ge=0)
     road_quality: Optional[int] = Field(default=3, ge=1, le=5)
@@ -47,6 +49,7 @@ class FloodRequest(BaseModel):
     rainfall_24h_mm: float = Field(..., ge=0, description="24-hour cumulative rainfall in mm")
     road_quality: Optional[int] = Field(default=3, ge=1, le=5)
     soil_clay_percent: Optional[float] = Field(default=35.0, ge=0, le=100)
+    soil_moisture_index: float = Field(default=0.5, ge=0.0, le=1.0)
 
 # Multi-Hazard Request Schema
 class ComprehensiveHazardRequest(BaseModel):
@@ -57,6 +60,7 @@ class ComprehensiveHazardRequest(BaseModel):
     rainfall_24h_mm: float = 65.0
     rainfall_72h_mm: float = 120.0
     soil_clay_percent: float = 38.0
+    soil_moisture_index: float = 0.65
     distance_to_river_m: float = 350.0
     vegetation_ndvi: float = 0.45
     historical_incidents: int = 3
@@ -71,6 +75,7 @@ class IncidentReport(BaseModel):
     rainfall_24h_mm: Optional[float] = 80.0
     rainfall_72h_mm: Optional[float] = 150.0
     soil_clay_percent: Optional[float] = 35.0
+    soil_moisture_index: Optional[float] = 0.5
     distance_to_river_m: Optional[float] = 400.0
     vegetation_ndvi: Optional[float] = 0.45
     historical_incidents: Optional[int] = 3
@@ -111,7 +116,8 @@ def calculate_risk(req: LegacyRiskRequest):
         road_quality=req.road_quality,
         rainfall_1h_mm=req.rainfall_1h_mm,
         rainfall_24h_mm=req.rainfall_24h_mm,
-        rainfall_72h_mm=req.rainfall_72h_mm
+        rainfall_72h_mm=req.rainfall_72h_mm,
+        soil_moisture_index=req.soil_moisture_index
     )
     
     return {

@@ -1,24 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const { driver } = require('../db/neo4j');
+const { sendHazardAlert } = require('../services/email');
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 
 async function fetchCorridorLiveWeather(midLat = 26.1445, midLng = 91.7362, corridorName = "Route Corridor") {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${midLat}&longitude=${midLng}&current_weather=true&hourly=precipitation,relativehumidity_2m`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const current = data.current_weather || {};
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${midLat}&longitude=${midLng}&current_weather=true&hourly=temperature_2m,precipitation,relativehumidity_2m`;
+    const soilUrl = `https://api.open-meteo.com/v1/era5?latitude=${midLat}&longitude=${midLng}&hourly=soil_moisture_0_7cm`;
+
+    const [weatherRes, soilRes] = await Promise.all([
+      fetch(weatherUrl),
+      fetch(soilUrl).catch(() => null) // Fallback in case ERA5 fails
+    ]);
+    
+    const weatherData = await weatherRes.json();
+    const soilData = soilRes ? await soilRes.json() : null;
+
+    const current = weatherData.current_weather || {};
     const code = current.weathercode || 0;
     const temp = current.temperature !== undefined ? current.temperature : 24.0;
     const wind = current.windspeed !== undefined ? current.windspeed : 10.0;
-    const precipArr = data.hourly?.precipitation || [];
-    const humidityArr = data.hourly?.relativehumidity_2m || [];
+    const precipArr = weatherData.hourly?.precipitation || [];
+    const humidityArr = weatherData.hourly?.relativehumidity_2m || [];
+    const moistureArr = soilData?.hourly?.soil_moisture_0_7cm || [];
 
     const rain1h = precipArr[0] || (code >= 60 ? 14 : (code >= 50 ? 4 : 0));
     const rain24h = precipArr.slice(0, 24).reduce((sum, v) => sum + (v || 0), 0) || (code >= 80 ? 65 : (code >= 60 ? 35 : 5));
     const humidity = humidityArr[0] || 78;
+    const moisture = moistureArr[0] || 0.45;
 
     let condition = "Clear Skies";
     let icon = "☀️";
@@ -60,7 +71,8 @@ async function fetchCorridorLiveWeather(midLat = 26.1445, midLng = 91.7362, corr
       rainfall1hMm: Number(rain1h.toFixed(1)),
       rainfall24hMm: Number(rain24h.toFixed(1)),
       humidityPercent: humidity,
-      windSpeedKmh: wind
+      windSpeedKmh: wind,
+      soilMoisture: Number(moisture.toFixed(2))
     };
   } catch (err) {
     console.error("Corridor weather fetch error:", err.message);
@@ -75,7 +87,8 @@ async function fetchCorridorLiveWeather(midLat = 26.1445, midLng = 91.7362, corr
       rainfall1hMm: 5.0,
       rainfall24hMm: 22.0,
       humidityPercent: 80,
-      windSpeedKmh: 9.0
+      windSpeedKmh: 9.0,
+      soilMoisture: 0.35
     };
   }
 }
@@ -201,7 +214,8 @@ router.post('/calculate', async (req, res) => {
             road_quality: road.quality,
             rainfall_1h_mm: liveRain1h,
             rainfall_24h_mm: liveRain24h,
-            rainfall_72h_mm: liveRain72h
+            rainfall_72h_mm: liveRain72h,
+            soil_moisture_index: corridorWeather.soilMoisture
           })
         });
 
@@ -413,6 +427,19 @@ router.post('/calculate', async (req, res) => {
       } else {
         recommendation = `WARNING: No safe bypass corridor available for this direct segment. Heavy commercial vehicles only. Extreme caution advised.`;
       }
+      
+      // FIRE BACKGROUND EMAIL ALERT
+      sendHazardAlert(
+        alertMessage, 
+        recommendation, 
+        { name: `Primary Route (${primNodeNames.join(' ➔ ')})` },
+        { 
+          isSafe: isDiverted, 
+          name: isDiverted ? `Safe Detour (${safeCoordinates.map(n => n.name).join(' ➔ ')})` : null,
+          estTimeMinutes: safeTimeMinutes
+        }
+      );
+
     } else {
       alertMessage = `✓ Primary route is clear. No severe landslide or flood risks detected.`;
       recommendation = `Proceed along standard transit corridor. Normal monsoon driving precautions apply.`;
@@ -433,6 +460,7 @@ router.post('/calculate', async (req, res) => {
     const routeJitter = Math.sin(nowSec / 7) * 0.08;
     routeWeather.rainfall1hMm = Math.max(0.5, Number((routeWeather.rainfall1hMm * (1 + routeJitter)).toFixed(1)));
     routeWeather.rainfall24hMm = Math.max(3.0, Number((routeWeather.rainfall24hMm * (1 + routeJitter * 0.5)).toFixed(1)));
+    routeWeather.soilMoisture = Math.max(0.1, Number((routeWeather.soilMoisture * (1 + routeJitter * 0.2)).toFixed(2)));
     routeWeather.lastUpdated = new Date().toISOString();
     routeWeather.isLiveStream = true;
 
@@ -469,6 +497,11 @@ router.post('/calculate', async (req, res) => {
       hazardAssessment: {
         evaluatedRoadsCount: uniqueRoads.length,
         activeHazardAlerts: primaryHazardsDetected
+      },
+      economicImpact: {
+        estimatedCargoValueSaved: isDiverted ? Math.floor(Math.random() * 400 + 100) * 1000 : 0, // Mock $100k - $500k saved
+        supplyDisruptionPrevented: hasHazard ? 'High (Critical Corridor)' : 'None',
+        delayPreventedHours: isDiverted ? Math.floor(Math.random() * 10 + 2) : 0
       }
     });
 

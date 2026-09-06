@@ -1,5 +1,9 @@
 fastapi
 uvicorn
 scikit-learn
+scipy
+joblib
 pandas
+numpy
 pydantic
+requests

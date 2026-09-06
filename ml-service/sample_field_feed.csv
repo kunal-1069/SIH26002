@@ -1,0 +1,4 @@
+road_corridor,slope_deg,elevation_m,rainfall_1h_mm,rainfall_24h_mm,rainfall_72h_mm,soil_clay_percent,distance_to_river_m,vegetation_ndvi,historical_incidents,road_quality,landslide_occurred,flood_occurred,inundation_depth_cm,risk_multiplier
+NH-06 (Guwahati-Shillong),42.0,890.0,42.0,155.0,310.0,48.0,120.0,0.22,8,2,1,0,0.0,4.8
+Guwahati-Jalukbari-Khanapara Urban,4.0,54.0,38.0,115.0,160.0,35.0,60.0,0.4,4,3,0,1,65.0,4.1
+NH-27 (East-West Corridor),8.0,105.0,5.0,18.0,30.0,28.0,1200.0,0.65,1,5,0,0,0.0,1.05

@@ -12,10 +12,12 @@ app.use(express.json());
 // Routes
 const fleetRoutes = require('./routes/fleet');
 const routingRoutes = require('./routes/routing');
+const hazardRoutes = require('./routes/hazards');
 // const reportRoutes = require('./routes/reports');
 
 app.use('/api/fleet', fleetRoutes);
 app.use('/api/route', routingRoutes);
+app.use('/api/hazards', hazardRoutes);
 // app.use('/api/reports', reportRoutes);
 
 app.get('/', (req, res) => {

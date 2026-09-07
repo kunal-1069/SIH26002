@@ -3,18 +3,19 @@ const nodemailer = require('nodemailer');
 // Ethereal Email test account (dynamically generated or hardcoded for ease)
 // To view sent emails, you can log in to ethereal.email using these credentials
 const SMTP_CONFIG = {
-  host: 'smtp.ethereal.email',
-  port: 587,
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
-    user: 'gregorio.mcclure90@ethereal.email',
-    pass: '1Yy1Nq8Sj8P3eH3fQ6'
+    user: 'vvveeeeuuu00@gmail.com',
+    pass: 'eubv nych abjk kmuu'
   }
 };
 
 
 const transporter = nodemailer.createTransport(SMTP_CONFIG);
 
-async function sendHazardAlert(alertMessage, recommendation, primaryRoute, safeRoute) {
+async function sendHazardAlert(userEmail, alertMessage, recommendation, primaryRoute, safeRoute) {
   try {
     const hazardHTML = `
       <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
@@ -47,8 +48,8 @@ async function sendHazardAlert(alertMessage, recommendation, primaryRoute, safeR
     `;
 
     const info = await transporter.sendMail({
-      from: '"AI Routing Engine" <your.email@gmail.com>',
-      to: 'fleet-manager@smartlogistics.com', // Dummy recipient
+      from: '"AI Routing Engine" <vvveeeeuuu00@gmail.com>',
+      to: userEmail || 'fleet-manager@smartlogistics.com', // Fallback recipient if no user logged in
       subject: '🚨 CRITICAL: Landslide / Flood Hazard Detected on Route',
       html: hazardHTML
     });
@@ -107,7 +108,7 @@ async function sendWelcomeEmail(userEmail, userName, activeHazards) {
     `;
 
     const info = await transporter.sendMail({
-      from: '"Smart Logistics Network" <your.email@gmail.com>',
+      from: '"Smart Logistics Network" <vvveeeeuuu00@gmail.com>',
       to: userEmail,
       subject: activeHazards && activeHazards.length > 0
         ? `Welcome to Smart Logistics (⚠️ Active Hazards in Network)`

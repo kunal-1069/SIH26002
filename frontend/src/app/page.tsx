@@ -419,10 +419,10 @@ export default function Dashboard() {
     setSelectedEnd(end);
 
     try {
-      const res = await fetch('http://localhost:3001/api/route/calculate', {
+      const res = await fetch('http://localhost:3005/api/route/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startNode: start, endNode: end })
+        body: JSON.stringify({ startNode: start, endNode: end, email: supabaseUser?.email })
       });
       if (res.ok) {
         const data = await res.json();

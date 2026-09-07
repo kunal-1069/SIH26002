@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
     let activeHazards = [];
     try {
       // Loopback fetch to the existing hazards endpoint
-      const hazardsRes = await fetch('http://localhost:3001/api/hazards/locations');
+      const hazardsRes = await fetch('http://localhost:3005/api/hazards/locations');
       if (hazardsRes.ok) {
         const hazardData = await hazardsRes.json();
         if (hazardData.locations) {

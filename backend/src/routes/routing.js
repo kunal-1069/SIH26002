@@ -145,7 +145,7 @@ router.get('/nodes', async (req, res) => {
 
 // POST /api/route/calculate - Calculate primary route, detect hazards, and suggest safe alternative route
 router.post('/calculate', async (req, res) => {
-  let { startNode, endNode } = req.body;
+  let { startNode, endNode, email } = req.body;
   if (!startNode) startNode = 'GAU';
   if (!endNode) endNode = 'SHL';
 
@@ -430,6 +430,7 @@ router.post('/calculate', async (req, res) => {
       
       // FIRE BACKGROUND EMAIL ALERT
       sendHazardAlert(
+        email,
         alertMessage, 
         recommendation, 
         { name: `Primary Route (${primNodeNames.join(' ➔ ')})` },

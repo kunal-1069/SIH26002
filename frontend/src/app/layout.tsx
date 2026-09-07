@@ -2,8 +2,8 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-  title: 'NER Sentry // Seven Sisters Route Intelligence & Dual-Hazard AI',
-  description: 'Real-Time Landslide & Flood AI Detection, Dijkstra Graph Rerouting, and Fleet Telemetry across Northeast India',
+  title: 'Bharat Highway Suraksha | NER Resilient Logistics & Highway Operations Center',
+  description: 'National Highway Geotechnical Telemetry, Corridor Disaster Mitigation, and Heavy Freight Convoy Operations (MoRTH / PM GatiShakti)',
 };
 
 export default function RootLayout({
@@ -18,13 +18,12 @@ export default function RootLayout({
           position="top-right"
           toastOptions={{
             style: {
-              background: '#1e293b',
+              background: '#0c1322',
               color: '#f8fafc',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(10px)',
-              fontSize: '0.82rem',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              fontSize: '0.8rem',
               fontWeight: 600,
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)'
             }
           }}
         />
@@ -33,4 +32,3 @@ export default function RootLayout({
     </html>
   );
 }
-

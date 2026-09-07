@@ -2,17 +2,18 @@
 
 import React, { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { UserPlus, ArrowLeft, User, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { UserPlus, ArrowLeft, User, Mail, Phone, ShieldCheck, Building2, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    division: 'Guwahati Division (Assam)'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -32,13 +33,13 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (res.ok) {
-        toast.success(data.message || 'Successfully registered responder profile!');
-        setFormData({ name: '', email: '', phone: '' });
+        toast.success(data.message || 'Responder profile registered successfully.');
+        setFormData({ name: '', email: '', phone: '', division: 'Guwahati Division (Assam)' });
       } else {
-        toast.error(data.error || 'Failed to register.');
+        toast.error(data.error || 'Registration failed. Please check details.');
       }
     } catch (error: any) {
-      toast.error('Network error. Verify backend container is running.');
+      toast.error('Network error. Verify service connection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -53,53 +54,61 @@ export default function RegisterPage() {
       justifyContent: 'center',
       backgroundColor: '#090d16',
       color: '#f8fafc',
-      padding: '20px'
+      padding: '24px'
     }}>
       <Toaster position="top-right" />
 
-      <div style={{ width: '100%', maxWidth: '440px', marginBottom: '12px' }}>
+      {/* Top Back Navigation */}
+      <div style={{ width: '100%', maxWidth: '460px', marginBottom: '14px' }}>
         <button
           onClick={() => window.location.href = '/'}
           className="dashboard-btn btn-glass"
-          style={{ padding: '6px 12px' }}
+          style={{ padding: '7px 14px' }}
         >
           <ArrowLeft size={16} />
-          <span>Return to Command Center</span>
+          <span>Back to Operations Center</span>
         </button>
       </div>
 
+      {/* Main Registration Card */}
       <div className="glass-panel-elevated" style={{
         padding: '2.5rem',
-        borderRadius: '16px',
+        borderRadius: '12px',
         width: '100%',
-        maxWidth: '440px',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
+        maxWidth: '460px',
+        border: '1px solid rgba(255, 255, 255, 0.12)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            margin: '0 auto 12px auto',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #2563eb, #38bdf8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(56, 189, 248, 0.4)'
-          }}>
-            <UserPlus size={24} color="#ffffff" />
+        {/* Card Header */}
+        <div style={{ marginBottom: '1.8rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38bdf8'
+            }}>
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <h1 style={{ color: '#ffffff', fontSize: '1.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
+                Field Responder Enrollment
+              </h1>
+              <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '2px 0 0 0' }}>
+                North East Regional Logistics & Emergency Protocol Network
+              </p>
+            </div>
           </div>
-          <h1 style={{ color: '#ffffff', fontSize: '1.45rem', fontWeight: 800, margin: 0 }}>
-            Responder Portal Access
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: '6px' }}>
-            Seven Sisters Logistics & Geotechnical Sentry Network
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          {/* Full Name */}
           <div>
-            <label htmlFor="name" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
+            <label htmlFor="name" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
               Full Name
             </label>
             <div style={{ position: 'relative' }}>
@@ -110,26 +119,27 @@ export default function RegisterPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                placeholder="Capt. John Doe"
+                placeholder="Rajesh Bora"
                 style={{
                   width: '100%',
                   padding: '10px 12px 10px 36px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
                   color: '#ffffff',
-                  fontSize: '0.88rem',
-                  boxSizing: 'border-box',
-                  outline: 'none'
+                  fontSize: '0.86rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
               <User size={16} color="#64748b" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)' }} />
             </div>
           </div>
 
+          {/* Official Email */}
           <div>
-            <label htmlFor="email" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
-              Official Email
+            <label htmlFor="email" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
+              Official Email Address
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -139,26 +149,27 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                placeholder="officer@logistics.gov.in"
+                placeholder="officer.bora@ner.gov.in"
                 style={{
                   width: '100%',
                   padding: '10px 12px 10px 36px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
                   color: '#ffffff',
-                  fontSize: '0.88rem',
-                  boxSizing: 'border-box',
-                  outline: 'none'
+                  fontSize: '0.86rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
               <Mail size={16} color="#64748b" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)' }} />
             </div>
           </div>
 
+          {/* Phone Number */}
           <div>
-            <label htmlFor="phone" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
-              Field Dispatch Contact
+            <label htmlFor="phone" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
+              Direct Contact Number
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -168,35 +179,71 @@ export default function RegisterPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 required
-                placeholder="+91 98765 43210"
+                placeholder="+91 98640 12891"
                 style={{
                   width: '100%',
                   padding: '10px 12px 10px 36px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
                   color: '#ffffff',
-                  fontSize: '0.88rem',
-                  boxSizing: 'border-box',
-                  outline: 'none'
+                  fontSize: '0.86rem',
+                  outline: 'none',
+                  boxSizing: 'border-box'
                 }}
               />
               <Phone size={16} color="#64748b" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)' }} />
             </div>
           </div>
 
+          {/* Operational Division */}
+          <div>
+            <label htmlFor="division" style={{ display: 'block', color: '#cbd5e1', fontSize: '0.78rem', fontWeight: 600, marginBottom: '6px' }}>
+              Regional Division
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select
+                id="division"
+                name="division"
+                value={formData.division}
+                onChange={handleChange}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px 10px 36px',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  color: '#ffffff',
+                  fontSize: '0.86rem',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="Guwahati Division (Assam)">Guwahati Division (Assam - NH-06)</option>
+                <option value="Shillong Division (Meghalaya)">Shillong Division (Meghalaya - NH-06/NH-27)</option>
+                <option value="Silchar Division (Assam/Barak Valley)">Silchar Division (Assam/Barak Valley - NH-306)</option>
+                <option value="Tezpur Division (Assam/Arunachal)">Tezpur Division (Assam/Arunachal - NH-13)</option>
+                <option value="Dimapur Division (Nagaland)">Dimapur Division (Nagaland - NH-29)</option>
+                <option value="Agartala Division (Tripura)">Agartala Division (Tripura - NH-08)</option>
+              </select>
+              <Building2 size={16} color="#64748b" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)' }} />
+            </div>
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
             className="dashboard-btn btn-electric"
-            style={{ width: '100%', padding: '12px', marginTop: '6px', fontSize: '0.88rem' }}
+            style={{ width: '100%', padding: '11px', marginTop: '6px', fontSize: '0.86rem' }}
           >
             {isSubmitting ? (
-              <span>Registering Profile...</span>
+              <span>Submitting Record...</span>
             ) : (
               <>
-                <ShieldCheck size={16} />
-                <span>Register Emergency Profile</span>
+                <UserPlus size={16} />
+                <span>Register Official Responder</span>
               </>
             )}
           </button>

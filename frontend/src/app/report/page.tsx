@@ -5,31 +5,32 @@ import { saveReportOffline } from '../../lib/indexeddb';
 import {
   AlertTriangle,
   ArrowLeft,
-  Sparkles,
   MapPin,
   Send,
   CheckCircle2,
-  Radio,
   Layers,
-  FileText
+  FileText,
+  ShieldAlert,
+  Clock
 } from 'lucide-react';
 
 export default function IncidentReportApp() {
   const [description, setDescription] = useState('');
-  const [hazardType, setHazardType] = useState<'landslide' | 'flood' | 'other'>('landslide');
+  const [hazardType, setHazardType] = useState<'landslide' | 'flood' | 'subsidence' | 'other'>('landslide');
   const [severity, setSeverity] = useState<'low' | 'moderate' | 'severe'>('severe');
-  const [feedToAI, setFeedToAI] = useState(true);
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [capturedLocation, setCapturedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const handleCaptureLocationAndSubmit = () => {
-    setStatusMessage('Capturing GPS coordinates via device sensors...');
+    setStatusMessage('Acquiring high-precision GPS coordinates...');
     setIsSubmitting(true);
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
+          setCapturedLocation({ lat: latitude, lng: longitude });
 
           const report = {
             id: crypto.randomUUID(),
@@ -43,38 +44,27 @@ export default function IncidentReportApp() {
 
           try {
             if (navigator.onLine) {
-              let aiStatus = '';
-              if (feedToAI) {
-                try {
-                  const aiPayload = {
-                    road_corridor: `Field Incident near (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`,
-                    slope_deg: hazardType === 'landslide' ? (severity === 'severe' ? 42.0 : 28.0) : 12.0,
-                    elevation_m: hazardType === 'flood' ? 65.0 : 450.0,
-                    rainfall_1h_mm: severity === 'severe' ? 35.0 : 15.0,
-                    rainfall_24h_mm: severity === 'severe' ? 120.0 : 60.0,
-                    rainfall_72h_mm: severity === 'severe' ? 240.0 : 110.0,
-                    landslide_occurred: hazardType === 'landslide' ? 1 : 0,
-                    flood_occurred: hazardType === 'flood' ? 1 : 0,
-                    inundation_depth_cm: hazardType === 'flood' ? (severity === 'severe' ? 60.0 : 25.0) : 0.0,
-                    historical_incidents: 4,
-                    road_quality: 3
-                  };
+              const payload = {
+                road_corridor: `Field Incident near (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                slope_deg: hazardType === 'landslide' ? (severity === 'severe' ? 42.0 : 28.0) : 12.0,
+                elevation_m: hazardType === 'flood' ? 65.0 : 450.0,
+                rainfall_1h_mm: severity === 'severe' ? 35.0 : 15.0,
+                rainfall_24h_mm: severity === 'severe' ? 120.0 : 60.0,
+                rainfall_72h_mm: severity === 'severe' ? 240.0 : 110.0,
+                landslide_occurred: hazardType === 'landslide' ? 1 : 0,
+                flood_occurred: hazardType === 'flood' ? 1 : 0,
+                inundation_depth_cm: hazardType === 'flood' ? (severity === 'severe' ? 60.0 : 25.0) : 0.0,
+                historical_incidents: 4,
+                road_quality: 3
+              };
 
-                  const aiRes = await fetch('http://localhost:3001/api/hazards/feed-incident', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(aiPayload)
-                  });
+              await fetch('http://localhost:3001/api/hazards/feed-incident', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
 
-                  if (aiRes.ok) {
-                    aiStatus = ' (AI Model fine-tuned in real time!)';
-                  }
-                } catch (mlErr) {
-                  console.warn('Could not feed to AI service directly:', mlErr);
-                }
-              }
-
-              setStatusMessage(`✓ Report transmitted and verified online!${aiStatus}`);
+              setStatusMessage('Incident successfully verified and broadcasted to regional route network.');
               setDescription('');
             } else {
               await saveReportOffline(report);
@@ -85,22 +75,22 @@ export default function IncidentReportApp() {
                 await registration.sync.register('sync-reports');
               }
 
-              setStatusMessage('📶 Offline mode: Incident stored in local IndexedDB. Will auto-sync upon reconnection.');
+              setStatusMessage('Offline Mode: Incident stored in secure IndexedDB cache. Transmitting on reconnect.');
             }
           } catch (error) {
-            setStatusMessage('Failed to transmit report. Please retry.');
+            setStatusMessage('Failed to transmit report. Please check connection and retry.');
           } finally {
             setIsSubmitting(false);
           }
         },
         (error) => {
-          setStatusMessage('GPS Sensor Error: ' + error.message);
+          setStatusMessage('GPS Sensor Notice: ' + error.message);
           setIsSubmitting(false);
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
-      setStatusMessage('Geolocation sensor is not supported by this browser.');
+      setStatusMessage('Geolocation sensor is not available on this browser.');
       setIsSubmitting(false);
     }
   };
@@ -110,7 +100,7 @@ export default function IncidentReportApp() {
       minHeight: '100vh',
       backgroundColor: '#090d16',
       color: '#f8fafc',
-      padding: '2.5rem 1rem',
+      padding: '2rem 1rem',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center'
@@ -121,227 +111,208 @@ export default function IncidentReportApp() {
           <button
             onClick={() => window.location.href = '/'}
             className="dashboard-btn btn-glass"
-            style={{ padding: '6px 12px' }}
+            style={{ padding: '7px 14px' }}
           >
             <ArrowLeft size={16} />
-            <span>Return to Command Center</span>
+            <span>Back to Operations Center</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#94a3b8' }}>
             <span className="live-indicator" />
-            <span>Telemetry Active</span>
+            <span>Field Dispatch Telemetry</span>
           </div>
         </div>
 
         {/* Card */}
         <div className="glass-panel-elevated" style={{
-          borderRadius: '16px',
+          borderRadius: '12px',
           padding: '2rem',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          border: '1px solid rgba(255, 255, 255, 0.12)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '0.5rem' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.2rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '14px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #ef4444, #f97316)',
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              backgroundColor: '#1e293b',
+              border: '1px solid #ef4444',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)'
+              color: '#ef4444'
             }}>
-              <AlertTriangle size={22} color="#ffffff" />
+              <AlertTriangle size={20} />
             </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff' }}>
-                Field Incident Reporter
+              <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                Highway Hazard & Road Cut Report
               </h1>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                Ground-Truth Hazard Capture & Continual AI Model Calibration
+              <p style={{ fontSize: '0.74rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
+                Direct Emergency Notification to State Logistics & Border Roads Authority
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleCaptureLocationAndSubmit(); }}>
+            {/* Hazard Classification */}
+            <div style={{ marginBottom: '1.1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
+                Incident Classification
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {[
+                  { key: 'landslide', label: 'Landslide / Rockfall' },
+                  { key: 'flood', label: 'Flash Flood / Inundation' },
+                  { key: 'subsidence', label: 'Road Sinking / Subsidence' },
+                  { key: 'other', label: 'Bridge / Traffic Obstruction' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setHazardType(item.key as any)}
+                    style={{
+                      padding: '9px 10px',
+                      borderRadius: '6px',
+                      border: hazardType === item.key ? '1.5px solid #38bdf8' : '1px solid #334155',
+                      backgroundColor: hazardType === item.key ? '#1e293b' : '#0f172a',
+                      color: hazardType === item.key ? '#ffffff' : '#94a3b8',
+                      fontSize: '0.76rem',
+                      fontWeight: hazardType === item.key ? 700 : 500,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          <div style={{ height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '1.2rem 0' }} />
-
-          {/* Hazard Type Buttons */}
-          <div style={{ marginBottom: '1.4rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, fontSize: '0.82rem', color: '#cbd5e1' }}>
-              Hazard Type
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setHazardType('landslide')}
-                style={{
-                  padding: '10px 8px',
-                  borderRadius: '8px',
-                  border: hazardType === 'landslide' ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
-                  backgroundColor: hazardType === 'landslide' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                  color: hazardType === 'landslide' ? '#fca5a5' : '#94a3b8',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>🏔️ Landslide</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardType('flood')}
-                style={{
-                  padding: '10px 8px',
-                  borderRadius: '8px',
-                  border: hazardType === 'flood' ? '1px solid #0284c7' : '1px solid rgba(255, 255, 255, 0.1)',
-                  backgroundColor: hazardType === 'flood' ? 'rgba(2, 132, 199, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                  color: hazardType === 'flood' ? '#7dd3fc' : '#94a3b8',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>🌊 Flood</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setHazardType('other')}
-                style={{
-                  padding: '10px 8px',
-                  borderRadius: '8px',
-                  border: hazardType === 'other' ? '1px solid #eab308' : '1px solid rgba(255, 255, 255, 0.1)',
-                  backgroundColor: hazardType === 'other' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                  color: hazardType === 'other' ? '#fde047' : '#94a3b8',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>🚧 Blockage</span>
-              </button>
+            {/* Severity Level */}
+            <div style={{ marginBottom: '1.1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '8px' }}>
+                Corridor Impact Severity
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {[
+                  { key: 'low', label: 'Low (Advisory)', color: '#10b981' },
+                  { key: 'moderate', label: 'Moderate (Slowdown)', color: '#f59e0b' },
+                  { key: 'severe', label: 'Severe (Total Blockage)', color: '#ef4444' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setSeverity(item.key as any)}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: severity === item.key ? `1.5px solid ${item.color}` : '1px solid #334155',
+                      backgroundColor: severity === item.key ? '#1e293b' : '#0f172a',
+                      color: severity === item.key ? item.color : '#94a3b8',
+                      fontSize: '0.74rem',
+                      fontWeight: severity === item.key ? 700 : 500,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Severity Segmented Buttons */}
-          <div style={{ marginBottom: '1.4rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, fontSize: '0.82rem', color: '#cbd5e1' }}>
-              Severity Level
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-              {(['low', 'moderate', 'severe'] as const).map(sev => (
-                <button
-                  key={sev}
-                  type="button"
-                  onClick={() => setSeverity(sev)}
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    border: severity === sev ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                    backgroundColor: severity === sev ? 'rgba(56, 189, 248, 0.2)' : 'rgba(30, 41, 59, 0.6)',
-                    color: severity === sev ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.78rem',
-                    textTransform: 'capitalize',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {sev}
-                </button>
-              ))}
+            {/* Incident Description */}
+            <div style={{ marginBottom: '1.2rem' }}>
+              <label htmlFor="description" style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                Operational Field Observations
+              </label>
+              <textarea
+                id="description"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+                placeholder="Describe mile marker, blockage extent, weather conditions, or stranded convoy vehicles..."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  color: '#ffffff',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.4,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
+              />
             </div>
-          </div>
 
-          {/* Incident Details Textarea */}
-          <div style={{ marginBottom: '1.4rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700, fontSize: '0.82rem', color: '#cbd5e1' }}>
-              Corridor Observations & Road Damage
-            </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="E.g., 40m debris slide blocking both lanes on NH-06, Sonapur Tunnel sector..."
+            {/* Geotag Indicator */}
+            {capturedLocation && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#0b1120',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                padding: '7px 12px',
+                marginBottom: '1rem',
+                fontSize: '0.74rem',
+                color: '#94a3b8'
+              }}>
+                <MapPin size={14} color="#38bdf8" />
+                <span>Geotag Coordinates: <strong style={{ color: '#ffffff' }}>{capturedLocation.lat.toFixed(5)}, {capturedLocation.lng.toFixed(5)}</strong></span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="dashboard-btn btn-danger-glow"
               style={{
                 width: '100%',
-                padding: '0.8rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                color: '#ffffff',
-                fontSize: '0.84rem',
-                fontFamily: 'inherit',
-                outline: 'none',
-                boxSizing: 'border-box'
+                padding: '12px',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
-            />
-          </div>
+            >
+              {isSubmitting ? (
+                <span>Acquiring GPS & Transmitting...</span>
+              ) : (
+                <>
+                  <Send size={16} />
+                  <span>Transmit Geotagged Incident</span>
+                </>
+              )}
+            </button>
+          </form>
 
-          {/* Feed into AI Checkbox */}
-          <div style={{
-            marginBottom: '1.6rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 14px',
-            backgroundColor: 'rgba(30, 41, 59, 0.5)',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 255, 255, 0.08)'
-          }}>
-            <input
-              type="checkbox"
-              id="feedToAI"
-              checked={feedToAI}
-              onChange={(e) => setFeedToAI(e.target.checked)}
-              style={{ width: '18px', height: '18px', accentColor: '#2563eb', cursor: 'pointer' }}
-            />
-            <label htmlFor="feedToAI" style={{ fontSize: '0.78rem', color: '#e2e8f0', cursor: 'pointer', lineHeight: 1.3 }}>
-              <strong>Real-Time AI Ingestion:</strong> Automatically update gradient boosting models with verified ground report.
-            </label>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            id="btn-submit-incident"
-            onClick={handleCaptureLocationAndSubmit}
-            disabled={isSubmitting}
-            className="dashboard-btn btn-electric"
-            style={{ width: '100%', padding: '12px', fontSize: '0.9rem' }}
-          >
-            {isSubmitting ? (
-              <span>Transmitting Geolocation & Data...</span>
-            ) : (
-              <>
-                <Send size={16} />
-                <span>Submit Field Incident Report</span>
-              </>
-            )}
-          </button>
-
+          {/* Feedback Message */}
           {statusMessage && (
             <div style={{
               marginTop: '1.2rem',
               padding: '10px 14px',
-              backgroundColor: statusMessage.includes('Error') || statusMessage.includes('Failed') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-              color: statusMessage.includes('Error') || statusMessage.includes('Failed') ? '#fca5a5' : '#86efac',
-              borderRadius: '8px',
+              borderRadius: '6px',
+              backgroundColor: '#0b1120',
+              border: '1px solid #334155',
               fontSize: '0.78rem',
-              border: statusMessage.includes('Error') || statusMessage.includes('Failed') ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)'
+              color: statusMessage.includes('✓') || statusMessage.includes('successfully') ? '#34d399' : '#f87171',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}>
-              {statusMessage}
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+              <span>{statusMessage}</span>
             </div>
           )}
         </div>

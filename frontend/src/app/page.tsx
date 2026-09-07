@@ -42,7 +42,11 @@ import {
   UserCheck,
   Cpu,
   Wrench,
-  Download
+  Download,
+  Smartphone,
+  Laptop,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -312,6 +316,8 @@ export default function Dashboard() {
   const [isClient, setIsClient] = useState(false);
   const [canInstallPWA, setCanInstallPWA] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
   const [supabaseUser, setSupabaseUser] = useState<any>(null);
   const [devices, setDevices] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -544,17 +550,32 @@ export default function Dashboard() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
 
+    if (typeof window !== 'undefined') {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+      setIsStandalone(isStandaloneMode);
+    }
+
     const handleBeforeInstall = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setCanInstallPWA(true);
     };
+
+    const handleAppInstalled = () => {
+      setIsStandalone(true);
+      setCanInstallPWA(false);
+      setDeferredPrompt(null);
+      toast.success('Bharat Highway Suraksha installed as Web App!');
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -1152,28 +1173,47 @@ export default function Dashboard() {
               <span>{supabaseUser ? (supabaseUser.user_metadata?.full_name?.split(' ')[0] || supabaseUser.email?.split('@')[0]) : 'Portal'}</span>
             </button>
 
-            {/* PWA Web App Install Button */}
-            {canInstallPWA && (
-              <button
-                id="btn-install-pwa"
-                onClick={async () => {
-                  if (deferredPrompt) {
+            {/* PWA Web App Install Button - Always Visible & Prominent */}
+            <button
+              id="btn-install-pwa"
+              onClick={async () => {
+                if (deferredPrompt) {
+                  try {
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
                     if (outcome === 'accepted') {
                       toast.success('Bharat Highway Suraksha Web App installed!');
+                      setDeferredPrompt(null);
                       setCanInstallPWA(false);
+                      setIsStandalone(true);
+                      return;
                     }
+                  } catch (err) {
+                    console.error('PWA prompt invocation error:', err);
                   }
-                }}
-                className="dashboard-btn btn-emerald-glow"
-                style={{ fontSize: '0.68rem', padding: '3px 8px' }}
-                title="Install Bharat Highway Suraksha as a Desktop / Mobile Web App"
-              >
-                <Download size={12} />
-                <span>Install App</span>
-              </button>
-            )}
+                }
+                setShowInstallModal(true);
+              }}
+              className="dashboard-btn btn-pwa-install animate-pwa-glow"
+              style={{
+                fontSize: '0.68rem',
+                padding: '4px 10px',
+                background: isStandalone
+                  ? 'rgba(16, 185, 129, 0.15)'
+                  : 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(6, 182, 212, 0.25))',
+                borderColor: isStandalone ? '#10b981' : '#34d399',
+                color: '#6ee7b7',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                boxShadow: isStandalone ? 'none' : '0 0 12px rgba(16, 185, 129, 0.35)'
+              }}
+              title={isStandalone ? "Running in Standalone Web App Mode" : "Install Bharat Highway Suraksha as a Desktop / Mobile Web App"}
+            >
+              <Download size={13} className={!isStandalone ? "animate-bounce" : ""} color="#34d399" />
+              <span>{isStandalone ? 'App Active' : 'Install App'}</span>
+            </button>
 
             {/* Manual Sync Button */}
             <button
@@ -2914,6 +2954,210 @@ export default function Dashboard() {
                   style={{ padding: '4px 10px', fontSize: '0.7rem', flexShrink: 0 }}
                 >
                   <Crosshair size={11} /> Center Vehicle
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* 11. PWA INSTALLATION INSTRUCTION & SETUP MODAL */}
+        {showInstallModal && (
+          <div
+            id="pwa-install-modal"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(5, 8, 16, 0.85)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowInstallModal(false);
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '620px',
+                backgroundColor: '#0c1322',
+                borderRadius: '16px',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(16, 185, 129, 0.25)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                animation: 'fadeIn 0.2s ease-out'
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{
+                  padding: '16px 20px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(56, 189, 248, 0.12))',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img
+                    src="/icon-192.png"
+                    alt="App Icon"
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(52, 211, 153, 0.4)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      objectFit: 'cover'
+                    }}
+                  />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Install Bharat Highway Suraksha
+                      <span style={{ fontSize: '0.65rem', background: '#10b981', color: '#090d16', padding: '2px 6px', borderRadius: '4px', fontWeight: 800 }}>PWA</span>
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#94a3b8' }}>
+                      National Highway Resilient Logistics & Emergency Telemetry Command Center
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowInstallModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '75vh', overflowY: 'auto' }}>
+                {/* Standalone Status or Native Trigger */}
+                {isStandalone ? (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle2 size={22} color="#34d399" style={{ flexShrink: 0 }} />
+                    <div>
+                      <div style={{ color: '#34d399', fontWeight: 700, fontSize: '0.82rem' }}>Already Running in Standalone Web App Mode</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>You are currently running the installed Progressive Web App with dedicated windowing and offline caching.</div>
+                    </div>
+                  </div>
+                ) : deferredPrompt ? (
+                  <div style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(6, 182, 212, 0.18))', border: '1px solid #10b981', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                    <div>
+                      <div style={{ color: '#6ee7b7', fontWeight: 700, fontSize: '0.85rem' }}>One-Click Browser Install Ready</div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Your browser is primed to install the web app now.</div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (deferredPrompt) {
+                          deferredPrompt.prompt();
+                          const { outcome } = await deferredPrompt.userChoice;
+                          if (outcome === 'accepted') {
+                            toast.success('App installed successfully!');
+                            setDeferredPrompt(null);
+                            setCanInstallPWA(false);
+                            setIsStandalone(true);
+                            setShowInstallModal(false);
+                          }
+                        }
+                      }}
+                      className="dashboard-btn btn-electric"
+                      style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 700, background: '#10b981', color: '#090d16', borderColor: '#34d399', flexShrink: 0 }}
+                    >
+                      <Download size={14} /> Install Now
+                    </button>
+                  </div>
+                ) : null}
+
+                {/* How to Install Guide */}
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                    How to Install on Your Device
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+                    {/* Desktop Card */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f8fafc', fontWeight: 700, fontSize: '0.82rem' }}>
+                        <Laptop size={16} color="#38bdf8" />
+                        <span>Chrome / Edge / Brave Desktop</span>
+                      </div>
+                      <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.6 }}>
+                        <li>Look at the far right of your <strong>URL address bar</strong> for the <strong style={{ color: '#38bdf8' }}>Install icon (⤓)</strong>.</li>
+                        <li>Click <strong>"Install"</strong> to add it directly to your Desktop & Taskbar.</li>
+                        <li>Or click the <strong>3-dots menu (⋮)</strong> → <em>"Save and share"</em> → <em>"Install Bharat Highway Suraksha"</em>.</li>
+                      </ol>
+                    </div>
+
+                    {/* Mobile Android Card */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f8fafc', fontWeight: 700, fontSize: '0.82rem' }}>
+                        <Smartphone size={16} color="#34d399" />
+                        <span>Android (Chrome / Edge)</span>
+                      </div>
+                      <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.6 }}>
+                        <li>Tap the <strong>three dots (⋮)</strong> at the top-right corner.</li>
+                        <li>Select <strong style={{ color: '#34d399' }}>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</li>
+                        <li>Tap <strong>Install</strong> to add the app icon to your home screen.</li>
+                      </ol>
+                    </div>
+
+                    {/* iOS Safari Card */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '14px', gridColumn: '1 / -1' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f8fafc', fontWeight: 700, fontSize: '0.82rem' }}>
+                        <Smartphone size={16} color="#a78bfa" />
+                        <span>iPhone & iPad (Safari)</span>
+                      </div>
+                      <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.6 }}>
+                        <li>Tap the <strong style={{ color: '#a78bfa' }}>Share icon [↑]</strong> in the Safari bottom toolbar.</li>
+                        <li>Scroll down and select <strong style={{ color: '#a78bfa' }}>"Add to Home Screen" (+)</strong>.</li>
+                        <li>Tap <strong>"Add"</strong> in the top-right corner.</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Features & Benefits */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '14px' }}>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+                    Web App Capabilities:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '0.72rem', color: '#94a3b8' }}>
+                    <div>⚡ <strong>Full Offline Access:</strong> Local cache & IndexedDB sync</div>
+                    <div>🛰️ <strong>Traccar Telemetry:</strong> Real-time convoy GPS updates</div>
+                    <div>🔔 <strong>Emergency Alerts:</strong> Instant corridor alerts</div>
+                    <div>🖥️ <strong>App Window:</strong> Runs without browser search bars</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', background: 'rgba(0, 0, 0, 0.35)', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  onClick={() => setShowInstallModal(false)}
+                  className="dashboard-btn btn-glass"
+                  style={{ padding: '6px 18px', fontSize: '0.78rem' }}
+                >
+                  Close
                 </button>
               </div>
             </div>

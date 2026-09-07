@@ -299,3 +299,30 @@ html, body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* PWA Install Button & Modal Styles */
+.btn-pwa-install {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-pwa-install:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45) !important;
+}
+
+@keyframes pwaGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+  }
+}
+
+.animate-pwa-glow {
+  animation: pwaGlow 2.5s infinite ease-in-out;
+}
+

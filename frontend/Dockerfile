@@ -1,29 +1,25 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 
 WORKDIR /app
+
+# Argument for Google Maps API key and Supabase credentials during Next.js static page generation
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDkis0HFmgKNF_RuBS6rHZz-aUxVkqUyd4
+ARG NEXT_PUBLIC_SUPABASE_URL=https://mfpgdfrmuoevzugmegja.supabase.co
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
+ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 COPY package*.json ./
 RUN npm install
 
 COPY . .
-
-# Argument for Google Maps API key during Next.js static page generation
-ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDkis0HFmgKNF_RuBS6rHZz-aUxVkqUyd4
-ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
 RUN npm run build
-
-FROM node:20-alpine AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV PORT=3000
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
 
 EXPOSE 3000
 

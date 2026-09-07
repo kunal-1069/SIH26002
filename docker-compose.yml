@@ -53,11 +53,17 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDkis0HFmgKNF_RuBS6rHZz-aUxVkqUyd4
+        - NEXT_PUBLIC_SUPABASE_URL=https://mfpgdfrmuoevzugmegja.supabase.co
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
+        - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
     container_name: sih-frontend
     ports:
       - "3000:3000"
     environment:
       - PORT=3000
+      - NEXT_PUBLIC_SUPABASE_URL=https://mfpgdfrmuoevzugmegja.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
+      - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
     depends_on:
       - backend
     restart: unless-stopped

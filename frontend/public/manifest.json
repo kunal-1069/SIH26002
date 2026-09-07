@@ -1,16 +1,53 @@
 {
-  "name": "Smart Logistics AI Network",
-  "short_name": "Smart Logi AI",
-  "description": "AI routing engine for the North Eastern Region",
+  "name": "Bharat Highway Suraksha | NER Logistics Operations",
+  "short_name": "HighwaySuraksha",
+  "description": "National Highway Resilient Logistics & Emergency Telemetry Command Center",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "orientation": "any",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "categories": ["navigation", "logistics", "utilities", "government"],
   "icons": [
     {
-      "src": "/favicon.ico",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/x-icon"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Field Incident Report",
+      "short_name": "Report",
+      "url": "/report",
+      "description": "Submit a geotagged highway hazard report"
+    },
+    {
+      "name": "Responder Portal",
+      "short_name": "Portal",
+      "url": "/register",
+      "description": "Supabase Field Responder Portal"
     }
   ]
 }

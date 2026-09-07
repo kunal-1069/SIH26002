@@ -1158,14 +1158,14 @@ export default function Dashboard() {
         {/* 2. SUB-RIBBON: PRIORITY NATIONAL HIGHWAY CORRIDORS */}
         <div style={{
           backgroundColor: '#090d16',
-          padding: '0.25rem 1rem',
+          padding: '0.3rem 1rem',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          overflowX: 'auto',
-          maxWidth: '100vw',
+          flexWrap: 'wrap',
+          width: '100%',
+          maxWidth: '100%',
           borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-          scrollbarWidth: 'none',
           boxSizing: 'border-box'
         }}>
           <span style={{

@@ -4,6 +4,8 @@ export interface IncidentReport {
   id: string;
   latitude: number;
   longitude: number;
+  hazardType?: string;
+  severity?: string;
   description: string;
   imageUrl?: string;
   timestamp: number;

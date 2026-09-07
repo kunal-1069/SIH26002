@@ -41,8 +41,10 @@ import {
   Package,
   UserCheck,
   Cpu,
-  Wrench
+  Wrench,
+  Download
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 // ALL 28 NODES ACROSS SEVEN SISTER STATES (+ SIKKIM)
 const SEVEN_SISTER_HUBS = [
@@ -137,6 +139,8 @@ const MapController: React.FC<{
   }, [map, targetCoords, routeCoords]);
   return null;
 };
+
+
 
 // Helper to check if dangerous path and safe path follow the exact same corridor
 const checkIsSamePath = (plan: any) => {
@@ -306,6 +310,9 @@ const DualRouteVisualizer: React.FC<{
 
 export default function Dashboard() {
   const [isClient, setIsClient] = useState(false);
+  const [canInstallPWA, setCanInstallPWA] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [supabaseUser, setSupabaseUser] = useState<any>(null);
   const [devices, setDevices] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [selectedTruck, setSelectedTruck] = useState<any | null>(null);
@@ -478,6 +485,16 @@ export default function Dashboard() {
     fetchHazardLocations();
     planRouteAndCheckHazards('GAU', 'SIL');
 
+    // Supabase auth session check
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session?.user) {
+        setSupabaseUser(data.session.user);
+      }
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSupabaseUser(session?.user || null);
+    });
+
     const fetchFleetData = async () => {
       try {
         const [devicesRes, positionsRes] = await Promise.all([
@@ -516,6 +533,7 @@ export default function Dashboard() {
       clearInterval(fleetInterval);
       clearInterval(weatherTabInterval);
       clearInterval(hazardInterval);
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
@@ -525,9 +543,18 @@ export default function Dashboard() {
     const handleOnline = () => setIsOffline(false);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstallPWA(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
     };
   }, []);
 
@@ -1109,16 +1136,44 @@ export default function Dashboard() {
               <span>Reports</span>
             </button>
 
-            {/* Responder Registration */}
+            {/* Supabase Officer Auth / Portal Badge */}
             <button
               id="btn-register"
               onClick={() => window.location.href = '/register'}
               className="dashboard-btn btn-glass"
-              title="Official Responder & Fleet Registration Portal"
+              style={{
+                borderColor: supabaseUser ? '#10b981' : undefined,
+                backgroundColor: supabaseUser ? 'rgba(16, 185, 129, 0.15)' : undefined,
+                color: supabaseUser ? '#34d399' : undefined
+              }}
+              title={supabaseUser ? `Supabase Officer: ${supabaseUser.email} (Click to manage profile)` : "Official Responder Portal & Supabase Auth"}
             >
-              <UserPlus size={12} color="#a78bfa" />
-              <span>Portal</span>
+              {supabaseUser ? <ShieldCheck size={12} color="#34d399" /> : <UserPlus size={12} color="#a78bfa" />}
+              <span>{supabaseUser ? (supabaseUser.user_metadata?.full_name?.split(' ')[0] || supabaseUser.email?.split('@')[0]) : 'Portal'}</span>
             </button>
+
+            {/* PWA Web App Install Button */}
+            {canInstallPWA && (
+              <button
+                id="btn-install-pwa"
+                onClick={async () => {
+                  if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                      toast.success('Bharat Highway Suraksha Web App installed!');
+                      setCanInstallPWA(false);
+                    }
+                  }
+                }}
+                className="dashboard-btn btn-emerald-glow"
+                style={{ fontSize: '0.68rem', padding: '3px 8px' }}
+                title="Install Bharat Highway Suraksha as a Desktop / Mobile Web App"
+              >
+                <Download size={12} />
+                <span>Install App</span>
+              </button>
+            )}
 
             {/* Manual Sync Button */}
             <button
@@ -1278,6 +1333,30 @@ export default function Dashboard() {
             <span style={{ color: '#38bdf8', fontWeight: 800 }}>NH-08</span>
             <span>Guwahati ➔ Agartala</span>
           </button>
+
+          {/* Live Traccar GPS Quick-Lock Chip */}
+          {positions.find((p: any) => p.isLiveTraccar) && (
+            <button
+              id="btn-track-traccar"
+              onClick={() => {
+                const trc = positions.find((p: any) => p.isLiveTraccar);
+                if (trc) {
+                  setSelectedTruck(trc);
+                  setMapTarget({ lat: trc.latitude, lng: trc.longitude });
+                  toast.success(`Tracking live Traccar unit: ${trc.callsign}`);
+                }
+              }}
+              className={`preset-chip ${selectedTruck?.isLiveTraccar ? 'active' : ''}`}
+              style={{
+                borderColor: '#10b981',
+                backgroundColor: selectedTruck?.isLiveTraccar ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)'
+              }}
+              title="Live Traccar GPS Satellite Telemetry"
+            >
+              <span style={{ color: '#34d399', fontWeight: 800 }}>🛰️ LIVE TRACCAR</span>
+              <span style={{ color: '#a7f3d0' }}>({positions.find((p: any) => p.isLiveTraccar)?.name?.split(': ')[1] || 'Unit K'})</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -1572,7 +1651,7 @@ export default function Dashboard() {
                 const isSelected = selectedTruck?.id === pos.id;
                 const isAlert = pos.status === 'ALERT_HAZARD_ZONE';
                 const isCaution = pos.status === 'CAUTION_MONITORED_CORRIDOR';
-                const statusColor = isAlert ? '#ef4444' : isCaution ? '#f59e0b' : '#10b981';
+                const statusColor = isAlert ? '#ea580c' : isCaution ? '#f59e0b' : '#38bdf8';
 
                 return (
                   <AdvancedMarker
@@ -1593,7 +1672,7 @@ export default function Dashboard() {
                       {/* Telematics Registration Pill positioned cleanly above truck */}
                       <div style={{
                         position: 'absolute',
-                        bottom: '28px',
+                        bottom: '30px',
                         left: '0px',
                         transform: 'translateX(-50%)',
                         display: 'flex',
@@ -1601,10 +1680,10 @@ export default function Dashboard() {
                         gap: '5px',
                         backgroundColor: '#0c1322',
                         color: '#f8fafc',
-                        padding: '2px 6px',
+                        padding: '2px 7px',
                         borderRadius: '4px',
-                        border: isSelected ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.2)',
-                        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.7)',
+                        border: isSelected ? '1.5px solid #38bdf8' : isAlert ? '1px solid #ea580c' : '1px solid #2563eb',
+                        boxShadow: isAlert ? '0 2px 8px rgba(234, 88, 12, 0.4)' : '0 2px 8px rgba(37, 99, 235, 0.4)',
                         fontSize: '0.64rem',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
@@ -1612,17 +1691,22 @@ export default function Dashboard() {
                         pointerEvents: 'none'
                       }}>
                         <span style={{
-                          width: '5px',
-                          height: '5px',
+                          width: '6px',
+                          height: '6px',
                           borderRadius: '50%',
                           backgroundColor: statusColor,
+                          boxShadow: `0 0 6px ${statusColor}`,
                           flexShrink: 0
                         }} />
-                        <span style={{ fontFamily: 'var(--font-mono), monospace' }}>
+                        <span style={{
+                          fontFamily: 'var(--font-mono), monospace',
+                          color: isAlert ? '#fb923c' : '#38bdf8',
+                          fontWeight: 800
+                        }}>
                           {pos.plateNumber || pos.callsign?.replace('CONVOY-', '') || `TRK-${pos.id}`}
                         </span>
                         <span style={{
-                          color: '#94a3b8',
+                          color: '#cbd5e1',
                           fontSize: '0.58rem',
                           fontWeight: 600,
                           paddingLeft: '3px',
@@ -1637,63 +1721,105 @@ export default function Dashboard() {
                         position: 'absolute',
                         top: '0px',
                         left: '0px',
-                        width: '24px',
+                        width: '26px',
                         height: '52px',
                         transform: `translate(-50%, -50%) rotate(${pos.bearing || 0}deg)`,
                         transformOrigin: 'center center',
                         transition: 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
                         filter: isSelected
-                          ? 'drop-shadow(0 0 5px rgba(56, 189, 248, 0.7)) drop-shadow(0 2px 5px rgba(0,0,0,0.6))'
-                          : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6))'
+                          ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.95)) drop-shadow(0 2px 5px rgba(0,0,0,0.7))'
+                          : isAlert
+                          ? 'drop-shadow(0 0 8px rgba(234, 88, 12, 0.9)) drop-shadow(0 2px 4px rgba(0,0,0,0.7))'
+                          : 'drop-shadow(0 0 6px rgba(37, 99, 235, 0.75)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7))'
                       }}>
-                        <svg viewBox="0 0 24 52" width="24" height="52" style={{ display: 'block', overflow: 'visible' }}>
+                        {/* Conical Headlight Beam Shining Forward onto Highway */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '-26px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: '36px',
+                          height: '28px',
+                          background: 'radial-gradient(ellipse at bottom, rgba(254, 240, 138, 0.45) 0%, rgba(254, 240, 138, 0.15) 50%, rgba(254, 240, 138, 0) 100%)',
+                          clipPath: 'polygon(25% 100%, 75% 100%, 100% 0%, 0% 0%)',
+                          pointerEvents: 'none',
+                          zIndex: 1
+                        }} />
+
+                        {/* First Iconic Blue & Orange Truck SVG */}
+                        <svg viewBox="0 0 26 52" width="26" height="52" style={{ display: 'block', overflow: 'visible' }}>
                           <defs>
-                            <linearGradient id={`cab-body-${pos.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={`windshield-${pos.id}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+                              <stop offset="100%" stopColor="#0284c7" stopOpacity="0.9" />
+                            </linearGradient>
+                            <linearGradient id={`body-${pos.id}`} x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor={isAlert ? '#c2410c' : isCaution ? '#9a3412' : '#1e3a8a'} />
+                              <stop offset="50%" stopColor={isAlert ? '#f97316' : isCaution ? '#ea580c' : '#2563eb'} />
+                              <stop offset="100%" stopColor={isAlert ? '#ea580c' : isCaution ? '#c2410c' : '#1d4ed8'} />
+                            </linearGradient>
+                            <linearGradient id={`cab-${pos.id}`} x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor="#f8fafc" />
                               <stop offset="50%" stopColor="#e2e8f0" />
-                              <stop offset="100%" stopColor="#94a3b8" />
-                            </linearGradient>
-                            <linearGradient id={`trailer-body-${pos.id}`} x1="0" y1="0" x2="1" y2="0">
-                              <stop offset="0%" stopColor="#1e293b" />
-                              <stop offset="35%" stopColor="#334155" />
-                              <stop offset="70%" stopColor="#334155" />
-                              <stop offset="100%" stopColor="#1e293b" />
+                              <stop offset="100%" stopColor="#cbd5e1" />
                             </linearGradient>
                           </defs>
 
-                          {/* Axles & Road Tires */}
-                          <rect x="0.5" y="5" width="2.5" height="6" rx="1" fill="#090d16" />
-                          <rect x="21" y="5" width="2.5" height="6" rx="1" fill="#090d16" />
-                          <rect x="0.5" y="32" width="2.5" height="6" rx="1" fill="#090d16" />
-                          <rect x="21" y="32" width="2.5" height="6" rx="1" fill="#090d16" />
-                          <rect x="0.5" y="41" width="2.5" height="6" rx="1" fill="#090d16" />
-                          <rect x="21" y="41" width="2.5" height="6" rx="1" fill="#090d16" />
+                          {/* Dual Axle Rubber Tires */}
+                          <rect x="1" y="6" width="2.5" height="6" rx="1.2" fill="#020617" />
+                          <rect x="22.5" y="6" width="2.5" height="6" rx="1.2" fill="#020617" />
 
-                          {/* Coupling Turntable */}
-                          <rect x="8" y="14" width="8" height="4" rx="1" fill="#475569" />
-                          <circle cx="12" cy="16" r="1.5" fill="#64748b" />
+                          <rect x="1" y="34" width="2.5" height="6" rx="1.2" fill="#020617" />
+                          <rect x="22.5" y="34" width="2.5" height="6" rx="1.2" fill="#020617" />
 
-                          {/* Commercial Cargo Container Trailer */}
-                          <rect x="2.5" y="16" width="19" height="34" rx="2" fill={`url(#trailer-body-${pos.id})`} stroke="#0f172a" strokeWidth="0.8" />
-                          <line x1="3.5" y1="22" x2="20.5" y2="22" stroke="rgba(255,255,255,0.12)" strokeWidth="0.7" />
-                          <line x1="3.5" y1="28" x2="20.5" y2="28" stroke="rgba(255,255,255,0.12)" strokeWidth="0.7" />
-                          <line x1="3.5" y1="34" x2="20.5" y2="34" stroke="rgba(255,255,255,0.12)" strokeWidth="0.7" />
-                          <line x1="3.5" y1="40" x2="20.5" y2="40" stroke="rgba(255,255,255,0.12)" strokeWidth="0.7" />
+                          <rect x="1" y="42" width="2.5" height="6" rx="1.2" fill="#020617" />
+                          <rect x="22.5" y="42" width="2.5" height="6" rx="1.2" fill="#020617" />
 
-                          {/* Safety Bumper & Reflectors */}
-                          <rect x="3.5" y="48.5" width="17" height="1.5" fill="#0f172a" />
-                          <rect x="4.5" y="48.8" width="3" height="0.9" fill="#ef4444" />
-                          <rect x="16.5" y="48.8" width="3" height="0.9" fill="#ef4444" />
+                          {/* Heavy Cargo Container Body: Classic Blue (or Orange when in Hazard alert) */}
+                          <rect x="3" y="17" width="20" height="33" rx="2.5" fill={`url(#body-${pos.id})`} stroke="#020617" strokeWidth="0.8" />
 
-                          {/* Commercial Tractor Cabin (Tata Prima Profile) */}
-                          <rect x="0.5" y="5" width="1.8" height="2.8" rx="0.5" fill="#475569" />
-                          <rect x="21.7" y="5" width="1.8" height="2.8" rx="0.5" fill="#475569" />
-                          <path d="M 3.5 5 Q 3.5 1.5 7 1.5 L 17 1.5 Q 20.5 1.5 20.5 5 L 20.5 15 L 3.5 15 Z" fill={`url(#cab-body-${pos.id})`} stroke="#0f172a" strokeWidth="0.8" />
-                          <rect x="5.5" y="0.8" width="13" height="1.4" rx="0.5" fill="#94a3b8" />
-                          <path d="M 5 4.5 Q 5 2.8 7.5 2.8 L 16.5 2.8 Q 19 2.8 19 4.5 L 19 7.5 L 5 7.5 Z" fill="#1e293b" stroke="#0f172a" strokeWidth="0.5" />
-                          <rect x="6.5" y="8.5" width="11" height="4.5" rx="1" fill="#334155" stroke="#1e293b" strokeWidth="0.4" />
-                          <circle cx="5.5" cy="1.6" r="0.9" fill="#fef08a" />
-                          <circle cx="18.5" cy="1.6" r="0.9" fill="#fef08a" />
+                          {/* Corrugated Cargo Grooves */}
+                          <line x1="4" y1="24" x2="22" y2="24" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                          <line x1="4" y1="31" x2="22" y2="31" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                          <line x1="4" y1="38" x2="22" y2="38" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+                          <line x1="4" y1="45" x2="22" y2="45" stroke="rgba(255,255,255,0.25)" strokeWidth="0.7" />
+
+                          {/* Rear Hazard Chevron Bar */}
+                          <rect x="4" y="48.5" width="18" height="1.2" fill="#fbbf24" />
+                          <rect x="5" y="48.8" width="3" height="0.8" fill="#ea580c" />
+                          <rect x="11.5" y="48.8" width="3" height="0.8" fill="#ea580c" />
+                          <rect x="18" y="48.8" width="3" height="0.8" fill="#ea580c" />
+
+                          {/* Rear Tail Lights */}
+                          <circle cx="5" cy="49" r="0.9" fill="#ef4444" />
+                          <circle cx="21" cy="49" r="0.9" fill="#ef4444" />
+
+                          {/* Fifth-Wheel Coupling Joint */}
+                          <rect x="9" y="13.5" width="8" height="4" rx="0.8" fill="#334155" />
+
+                          {/* Side Mirrors */}
+                          <rect x="0.5" y="6" width="1.5" height="2.5" rx="0.4" fill="#64748b" />
+                          <rect x="24" y="6" width="1.5" height="2.5" rx="0.4" fill="#64748b" />
+
+                          {/* Tractor Cab */}
+                          <path d="M 4 5 Q 4 1.5 7.5 1.5 L 18.5 1.5 Q 22 1.5 22 5 L 22 15 L 4 15 Z" fill={`url(#cab-${pos.id})`} stroke="#0f172a" strokeWidth="0.8" />
+
+                          {/* Windshield Glass (Cyan Tint) */}
+                          <path d="M 5.5 4.5 Q 5.5 3 8 3 L 18 3 Q 20.5 3 20.5 4.5 L 20.5 7 L 5.5 7 Z" fill={`url(#windshield-${pos.id})`} />
+
+                          {/* Aerodynamic Roof Visor */}
+                          <rect x="7" y="8.5" width="12" height="4.5" rx="1" fill="#475569" />
+
+                          {/* Glowing Halogen Headlights */}
+                          <circle cx="6.5" cy="1.8" r="1.1" fill="#fef08a" />
+                          <circle cx="19.5" cy="1.8" r="1.1" fill="#fef08a" />
+
+                          {/* Roof Hazard Beacon */}
+                          {isAlert && (
+                            <circle cx="13" cy="9" r="1.8" fill="#ea580c">
+                              <animate attributeName="opacity" values="1;0.2;1" dur="0.8s" repeatCount="indefinite" />
+                            </circle>
+                          )}
                         </svg>
                       </div>
                     </div>
@@ -1789,36 +1915,47 @@ export default function Dashboard() {
                     }}
                     style={{
                       padding: '6px 8px',
-                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : '#0e1524',
+                      backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.18)' : '#0e1524',
                       borderRadius: '5px',
-                      border: isSelected ? '1px solid #3b82f6' : isAlert ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255, 255, 255, 0.06)',
+                      border: isSelected ? '1px solid #38bdf8' : isAlert ? '1px solid rgba(234, 88, 12, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
+                      borderLeft: isAlert ? '4px solid #ea580c' : '4px solid #2563eb',
                       cursor: 'pointer',
                       transition: 'all 0.15s ease',
                       boxSizing: 'border-box'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.74rem', color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {truck.callsign}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: isAlert ? '#ea580c' : '#2563eb',
+                          boxShadow: isAlert ? '0 0 6px rgba(234, 88, 12, 0.7)' : '0 0 6px rgba(37, 99, 235, 0.7)',
+                          flexShrink: 0
+                        }} />
+                        <div style={{ fontWeight: 800, fontSize: '0.74rem', color: isAlert ? '#fb923c' : '#38bdf8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {truck.callsign}
+                        </div>
                       </div>
                       <span style={{
                         fontSize: '0.56rem',
                         fontWeight: 700,
                         padding: '1px 4px',
                         borderRadius: '3px',
-                        backgroundColor: isAlert ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                        color: isAlert ? '#fca5a5' : '#34d399',
+                        backgroundColor: isAlert ? 'rgba(234, 88, 12, 0.25)' : 'rgba(37, 99, 235, 0.2)',
+                        color: isAlert ? '#fdba74' : '#60a5fa',
                         flexShrink: 0
                       }}>
                         {isAlert ? 'HAZARD' : `${truck.speedKmh} km/h`}
                       </span>
                     </div>
-                    <div style={{ fontSize: '0.64rem', color: '#94a3b8', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '0.64rem', color: '#94a3b8', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {truck.name}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: '#cbd5e1', marginTop: '3px', paddingTop: '3px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <span>Reg: <strong style={{ color: '#ffffff' }}>{truck.plateNumber}</strong></span>
-                      <span>Progress: <strong style={{ color: '#38bdf8' }}>{truck.progressPercent}%</strong></span>
+                      <span>Progress: <strong style={{ color: isAlert ? '#fb923c' : '#38bdf8' }}>{truck.progressPercent}%</strong></span>
                     </div>
                   </div>
                 );
@@ -2510,12 +2647,12 @@ export default function Dashboard() {
                     <span style={{
                       fontSize: '0.98rem',
                       fontWeight: 800,
-                      color: '#38bdf8',
+                      color: selectedTruck.status === 'ALERT_HAZARD_ZONE' ? '#fb923c' : '#38bdf8',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px'
                     }}>
-                      <Truck size={17} />
+                      <Truck size={17} color={selectedTruck.status === 'ALERT_HAZARD_ZONE' ? '#ea580c' : '#2563eb'} />
                       {selectedTruck.callsign}
                     </span>
 
@@ -2555,11 +2692,11 @@ export default function Dashboard() {
                       fontWeight: 700,
                       padding: '1px 5px',
                       borderRadius: '3px',
-                      backgroundColor: selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.2)',
-                      color: selectedTruck.status === 'ALERT_HAZARD_ZONE' ? '#fca5a5' : '#34d399',
-                      border: `1px solid ${selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(16, 185, 129, 0.4)'}`
+                      backgroundColor: selectedTruck.isLiveTraccar ? 'rgba(16, 185, 129, 0.25)' : selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'rgba(234, 88, 12, 0.25)' : 'rgba(37, 99, 235, 0.2)',
+                      color: selectedTruck.isLiveTraccar ? '#34d399' : selectedTruck.status === 'ALERT_HAZARD_ZONE' ? '#fdba74' : '#60a5fa',
+                      border: `1px solid ${selectedTruck.isLiveTraccar ? 'rgba(16, 185, 129, 0.5)' : selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'rgba(234, 88, 12, 0.5)' : 'rgba(37, 99, 235, 0.4)'}`
                     }}>
-                      {selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'HAZARD ZONE PROXIMITY' : 'ACTIVE ON-TIME'}
+                      {selectedTruck.isLiveTraccar ? '🛰️ LIVE TRACCAR GPS' : selectedTruck.status === 'ALERT_HAZARD_ZONE' ? 'HAZARD ZONE PROXIMITY' : 'ACTIVE ON-TIME'}
                     </span>
                   </div>
                   <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px', wordBreak: 'break-word', overflowWrap: 'break-word' }}>

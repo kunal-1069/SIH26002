@@ -256,9 +256,81 @@ async function initializeRouteGeometries() {
 }
 initializeRouteGeometries();
 
-// GET /api/fleet/devices - Detailed Convoy Fleet Manifest
+// Traccar Live Fleet Telemetry Integration
+const TRACCAR_URL = process.env.TRACCAR_URL || 'https://demo4.traccar.org';
+const TRACCAR_TOKEN = process.env.TRACCAR_TOKEN || 'RzBFAiEAmkBE6qFT33LTHdzCFYUo5tTtxiSd4ponJF0aiWd1M_UCIEbSxaZOq2rbmz-k5klbbHL6I4DTEblpu75P7pTCCQt7eyJpIjo2MjUwMTM5MTYwODQ0MTI0MDI1LCJ1Ijo1NDg5MCwiZSI6IjIwMjYtMDktMTFUMTg6MzA6MDAuMDAwKzAwOjAwIn0';
+
+// Cache Traccar data for 3 seconds to ensure real-time updates without rate limiting
+let traccarCache = {
+  timestamp: 0,
+  devices: [],
+  positions: []
+};
+
+async function fetchTraccarData() {
+  const now = Date.now();
+  if (now - traccarCache.timestamp < 3000 && traccarCache.devices.length > 0) {
+    return traccarCache;
+  }
+
+  try {
+    const headers = {
+      'Authorization': 'Bearer ' + TRACCAR_TOKEN,
+      'Accept': 'application/json'
+    };
+
+    const [devRes, posRes] = await Promise.all([
+      fetch(`${TRACCAR_URL}/api/devices`, { headers }),
+      fetch(`${TRACCAR_URL}/api/positions`, { headers })
+    ]);
+
+    if (devRes.ok && posRes.ok) {
+      const devices = await devRes.json();
+      const positions = await posRes.json();
+      traccarCache = {
+        timestamp: now,
+        devices: Array.isArray(devices) ? devices : [],
+        positions: Array.isArray(positions) ? positions : []
+      };
+    }
+  } catch (err) {
+    console.warn('[Traccar] Live telemetry notice:', err.message);
+  }
+
+  return traccarCache;
+}
+
+// GET /api/fleet/traccar/status - Traccar connection health and telemetry summary
+router.get('/traccar/status', async (req, res) => {
+  try {
+    const { devices, positions } = await fetchTraccarData();
+    res.json({
+      connected: devices.length > 0,
+      serverUrl: TRACCAR_URL,
+      deviceCount: devices.length,
+      devices: devices.map(d => {
+        const p = positions.find(pos => pos.deviceId === d.id);
+        return {
+          id: d.id,
+          name: d.name,
+          uniqueId: d.uniqueId,
+          status: d.status,
+          protocol: p?.protocol || 'unknown',
+          lastUpdate: d.lastUpdate,
+          latitude: p?.latitude,
+          longitude: p?.longitude,
+          batteryLevel: p?.attributes?.batteryLevel
+        };
+      })
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to inspect Traccar service', details: err.message });
+  }
+});
+
+// GET /api/fleet/devices - Detailed Convoy Fleet Manifest + Live Traccar Units
 router.get('/devices', async (req, res) => {
-  res.json(dummyRoutes.map(r => ({
+  const manifest = dummyRoutes.map(r => ({
     id: r.id,
     callsign: r.callsign,
     name: r.name,
@@ -271,8 +343,49 @@ router.get('/devices', async (req, res) => {
     driver: r.driver,
     cargo: r.cargo,
     totalDistanceKm: r.totalDistanceKm,
-    baseSpeedKmh: r.speedKmhBase
-  })));
+    baseSpeedKmh: r.speedKmhBase,
+    source: 'SIMULATED_CONVOY'
+  }));
+
+  try {
+    const { devices, positions } = await fetchTraccarData();
+    for (const dev of devices) {
+      const pos = positions.find(p => p.deviceId === dev.id);
+      manifest.push({
+        id: 100000 + dev.id,
+        traccarId: dev.id,
+        callsign: `TRACCAR-${dev.name || dev.uniqueId}`,
+        name: `Traccar Live: ${dev.name || 'Unit ' + dev.uniqueId}`,
+        plateNumber: `GPS-${dev.uniqueId}`,
+        model: dev.model || `Traccar GPS (${pos?.protocol?.toUpperCase() || 'LIVE'})`,
+        vehicleClass: 'Live GPS Satellite Telemetry',
+        corridor: 'Real-Time Field Dispatch',
+        origin: { name: 'Active GPS Fix', lat: pos?.latitude || 26.1445, lng: pos?.longitude || 91.7362 },
+        destination: { name: 'Regional Command Center', lat: 26.1445, lng: 91.7362 },
+        driver: {
+          name: dev.contact || `Officer ${dev.name || 'Field'}`,
+          badge: `TRC-${dev.uniqueId}`,
+          phone: dev.phone || '+91 Live Sensor',
+          experienceYears: 6,
+          bloodGroup: 'B+'
+        },
+        cargo: {
+          type: 'Emergency Response / Live Patrol',
+          weightTons: 2.5,
+          category: 'Active Field Unit',
+          valueInr: 'Mission Critical'
+        },
+        totalDistanceKm: pos?.attributes?.totalDistance ? Math.round(pos.attributes.totalDistance / 1000) : 150,
+        baseSpeedKmh: pos?.speed ? Math.round(pos.speed * 1.852) : 40,
+        source: 'LIVE_TRACCAR',
+        status: dev.status
+      });
+    }
+  } catch (err) {
+    console.error('Error combining Traccar devices:', err);
+  }
+
+  res.json(manifest);
 });
 
 // GET /api/fleet/positions - Real-Time Dynamic Telemetry & Proximity Risk Intelligence
@@ -379,6 +492,96 @@ router.get('/positions', async (req, res) => {
     };
   });
 
+  // Combine live Traccar units
+  try {
+    const { devices, positions: traccarPositions } = await fetchTraccarData();
+    for (const dev of devices) {
+      const pos = traccarPositions.find(p => p.deviceId === dev.id);
+      if (!pos || !pos.latitude || !pos.longitude) continue;
+
+      const lat = pos.latitude;
+      const lng = pos.longitude;
+      const speedKmh = Math.round((pos.speed || 0) * 1.852);
+      const bearing = pos.course ? Math.round(pos.course) : 0;
+      const battery = pos.attributes?.batteryLevel !== undefined ? Math.round(pos.attributes.batteryLevel) : 88;
+
+      // Proximity check to geotechnical hazard hotspots
+      let proximityAlert = null;
+      let status = dev.status === 'online' ? 'LIVE_GPS_ONLINE' : 'EN_ROUTE_NOMINAL';
+      let minHazardDist = 999;
+      let closestHazard = null;
+
+      for (const h of HAZARD_HOTSPOTS) {
+        const dist = getHaversineDistanceKm(lat, lng, h.lat, h.lng);
+        if (dist < minHazardDist) {
+          minHazardDist = dist;
+          closestHazard = h;
+        }
+      }
+
+      if (closestHazard && minHazardDist < 25) {
+        status = minHazardDist < 10 ? 'ALERT_HAZARD_ZONE' : 'CAUTION_MONITORED_CORRIDOR';
+        proximityAlert = {
+          hotspotId: closestHazard.id,
+          hotspotName: closestHazard.name,
+          corridor: closestHazard.corridor,
+          hazardType: closestHazard.hazardType,
+          distanceKm: Math.round(minHazardDist * 10) / 10,
+          advisory: minHazardDist < 10
+            ? `CRITICAL PROXIMITY: ${Math.round(minHazardDist * 10) / 10} km to active ${closestHazard.hazardType} zone (${closestHazard.name}).`
+            : `MONITORING: ${Math.round(minHazardDist * 10) / 10} km approaching ${closestHazard.name}.`
+        };
+      }
+
+      positions.push({
+        id: 100000 + dev.id,
+        deviceId: 100000 + dev.id,
+        traccarId: dev.id,
+        callsign: `TRACCAR-${dev.name || dev.uniqueId}`,
+        name: `Traccar Live: ${dev.name || 'Unit ' + dev.uniqueId}`,
+        plateNumber: `GPS-${dev.uniqueId}`,
+        model: dev.model || `Traccar GPS (${pos.protocol?.toUpperCase() || 'LIVE'})`,
+        vehicleClass: 'Live GPS Satellite Telemetry',
+        corridor: 'Real-Time Field Dispatch',
+        origin: { name: 'Active GPS Fix', lat: lat, lng: lng },
+        destination: { name: 'Regional Command Center', lat: 26.1445, lng: 91.7362 },
+        driver: {
+          name: dev.contact || `Officer ${dev.name || 'Field'}`,
+          badge: `TRC-${dev.uniqueId}`,
+          phone: dev.phone || '+91 Live Sensor',
+          experienceYears: 6,
+          bloodGroup: 'B+'
+        },
+        cargo: {
+          type: 'Emergency Response / Live Patrol',
+          weightTons: 2.5,
+          category: 'Active Field Unit',
+          valueInr: 'Mission Critical'
+        },
+        latitude: lat,
+        longitude: lng,
+        bearing: bearing,
+        compass: getCompassDirection(bearing),
+        speedKmh: speedKmh,
+        progressPercent: 100,
+        distanceCoveredKm: pos.attributes?.totalDistance ? Math.round(pos.attributes.totalDistance / 1000) : 0,
+        distanceRemainingKm: 0,
+        etaMinutes: 0,
+        fuelPercent: battery,
+        engineTempC: 82,
+        oilPressurePsi: 51,
+        batteryVoltage: Number((battery * 0.12 + 12.0).toFixed(1)),
+        odometerKm: pos.attributes?.totalDistance ? Math.round(pos.attributes.totalDistance / 1000) : 10520,
+        status: status,
+        proximityAlert: proximityAlert,
+        isLiveTraccar: true,
+        lastUpdate: dev.lastUpdate || pos.fixTime
+      });
+    }
+  } catch (err) {
+    console.error('Error combining Traccar positions:', err);
+  }
+
   res.json(positions);
 });
 
@@ -386,15 +589,48 @@ router.get('/positions', async (req, res) => {
 router.get('/vehicle/:id', async (req, res) => {
   const truckId = parseInt(req.params.id, 10);
   const truck = dummyRoutes.find(t => t.id === truckId);
-  if (!truck) {
-    return res.status(404).json({ error: 'Truck not found in active fleet manifest' });
+  if (truck) {
+    return res.json({
+      ...truck,
+      geometryCount: truck.geometry?.length || 0,
+      geometry: truck.geometry || []
+    });
   }
 
-  res.json({
-    ...truck,
-    geometryCount: truck.geometry?.length || 0,
-    geometry: truck.geometry || []
-  });
+  // Check if it is a Traccar device
+  if (truckId >= 100000) {
+    const traccarDevId = truckId - 100000;
+    try {
+      const { devices, positions } = await fetchTraccarData();
+      const dev = devices.find(d => d.id === traccarDevId);
+      const pos = positions.find(p => p.deviceId === traccarDevId);
+      if (dev && pos) {
+        return res.json({
+          id: truckId,
+          traccarId: dev.id,
+          callsign: `TRACCAR-${dev.name || dev.uniqueId}`,
+          name: `Traccar Live: ${dev.name || 'Unit ' + dev.uniqueId}`,
+          plateNumber: `GPS-${dev.uniqueId}`,
+          model: dev.model || `Traccar GPS (${pos.protocol?.toUpperCase() || 'LIVE'})`,
+          vehicleClass: 'Live GPS Satellite Telemetry',
+          corridor: 'Real-Time Field Dispatch',
+          driver: {
+            name: dev.contact || `Officer ${dev.name || 'Field'}`,
+            badge: `TRC-${dev.uniqueId}`,
+            phone: dev.phone || '+91 Live Sensor'
+          },
+          cargo: {
+            type: 'Emergency Response / Live Patrol',
+            weightTons: 2.5
+          },
+          geometryCount: 1,
+          geometry: [{ lat: pos.latitude, lng: pos.longitude }]
+        });
+      }
+    } catch (_) {}
+  }
+
+  res.status(404).json({ error: 'Truck not found in active fleet manifest' });
 });
 
 module.exports = router;

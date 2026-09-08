@@ -43,8 +43,8 @@ services:
   - type: web
     name: sih-ml-service
     env: docker
-    rootDir: ml-service
-    dockerfilePath: ml-service/Dockerfile
+    dockerContext: ml-service
+    dockerfilePath: ./ml-service/Dockerfile
     envVars:
       - key: PORT
         value: 8000

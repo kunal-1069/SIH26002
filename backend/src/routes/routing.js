@@ -3,7 +3,10 @@ const router = express.Router();
 const { driver } = require('../db/neo4j');
 const { sendHazardAlert } = require('../services/email');
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+let ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+if (!ML_SERVICE_URL.startsWith('http')) {
+    ML_SERVICE_URL = `http://${ML_SERVICE_URL}`;
+}
 
 async function fetchCorridorLiveWeather(midLat = 26.1445, midLng = 91.7362, corridorName = "Route Corridor") {
   try {

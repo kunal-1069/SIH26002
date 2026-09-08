@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+let ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+if (!ML_SERVICE_URL.startsWith('http')) {
+    ML_SERVICE_URL = `http://${ML_SERVICE_URL}`;
+}
 
 // Known geo-vulnerable monitoring hotspots across ALL SEVEN SISTER STATES
 const REGIONAL_HOTSPOTS = [

@@ -1,0 +1,50 @@
+services:
+  # 1. Backend Web Service (Node.js)
+  - type: web
+    name: sih-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3005
+      - key: ML_SERVICE_URL
+        fromService:
+          type: web
+          name: sih-ml-service
+          envVarKey: RENDER_INTERNAL_HOSTNAME
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: POSTGRES_HOST
+        sync: false
+      - key: POSTGRES_PORT
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_DB
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: TRACCAR_URL
+        sync: false
+      - key: TRACCAR_TOKEN
+        sync: false
+
+  # 2. ML Service (Python / Docker)
+  - type: web
+    name: sih-ml-service
+    env: docker
+    rootDir: ml-service
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000

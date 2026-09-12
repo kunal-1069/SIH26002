@@ -476,7 +476,14 @@ export default function Dashboard() {
   useEffect(() => {
     setIsClient(true);
 
+    const handleGlobalError = (event: ErrorEvent) => {
+      if (event?.message && (event.message.includes('getRootNode') || event.message.includes('ResizeObserver'))) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
     if (typeof window !== 'undefined') {
+      window.addEventListener('error', handleGlobalError);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
           for (const reg of registrations) reg.unregister();
@@ -538,6 +545,7 @@ export default function Dashboard() {
     const hazardInterval = setInterval(fetchHazardLocations, 5000);
 
     return () => {
+      window.removeEventListener('error', handleGlobalError);
       clearInterval(fleetInterval);
       clearInterval(weatherTabInterval);
       clearInterval(hazardInterval);
@@ -1560,7 +1568,11 @@ export default function Dashboard() {
         }}
       >
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}>
-          <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
+          <APIProvider
+            apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+            version="quarterly"
+            libraries={['marker', 'geometry']}
+          >
             <Map
               defaultCenter={{ lat: 26.1445, lng: 91.7362 }}
               defaultZoom={7.5}

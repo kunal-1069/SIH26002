@@ -2,9 +2,8 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install build dependencies
+# Install runtime dependencies (libgomp1 required for XGBoost OpenMP)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     curl \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*

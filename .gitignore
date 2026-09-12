@@ -69,3 +69,5 @@ pids
 # AI / Antigravity IDE
 .gemini/
 .system_generated/
+scratch/
+*.tsbuildinfo

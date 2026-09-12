@@ -1,28 +1,35 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  /* Authoritative Enterprise Operations Theme (MoRTH / GatiShakti Palette) */
-  --bg-dark: #080c14;
-  --bg-surface: #0e1524;
-  --bg-surface-card: #131c2e;
-  --bg-surface-elevated: #1a243a;
+  /* Clean Production Design Tokens */
+  --bg-dark: #111827;
+  --bg-sidebar: #1f2937;
+  --bg-card: #1f2937;
+  --bg-card-hover: #374151;
+  --bg-input: #1f2937;
   
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-strong: rgba(255, 255, 255, 0.22);
-  --border-focus: #2563eb;
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --border-focus: #3b82f6;
 
-  /* Executive Colors */
-  --primary-blue: #1d4ed8;
-  --primary-blue-hover: #1e40af;
-  --accent-emerald: #059669;
-  --accent-emerald-hover: #047857;
-  --accent-amber: #d97706;
-  --accent-crimson: #dc2626;
-  --accent-crimson-hover: #b91c1c;
+  /* Functional Status Colors */
+  --color-safe: #10b981;
+  --color-safe-bg: rgba(16, 185, 129, 0.12);
+  --color-safe-border: rgba(16, 185, 129, 0.3);
+
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-danger-border: rgba(239, 68, 68, 0.35);
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
 }
 
 *, *::before, *::after {
@@ -33,269 +40,1391 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   max-width: 100vw;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: var(--font-main);
-  background-color: var(--bg-dark);
+  background-color: #0c121f;
   color: #f8fafc;
   -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
 }
 
-/* Crisp Precision Scrollbar */
+/* Smooth Translucent Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(14, 21, 36, 0.6);
+  background: rgba(10, 15, 25, 0.4);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.5);
-  border-radius: 3px;
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.8);
+  background: rgba(148, 163, 184, 0.7);
 }
 
-/* Enterprise Surface Panels with Strict Boundary Containment */
-.glass-panel {
-  background: rgba(14, 21, 36, 0.94);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  box-sizing: border-box;
-  max-width: 100%;
-}
-
-.glass-panel-elevated {
-  background: rgba(14, 21, 36, 0.97);
+/* Portal Navigation Bar */
+.portal-navbar {
+  background: rgba(12, 18, 30, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-medium);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.5rem 1.2rem;
+  display: flex;
+  justifyContent: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 100;
   box-sizing: border-box;
-  max-width: 100%;
+  flex-shrink: 0;
 }
 
-/* Professional Operations Button Suite */
+/* Portal Sidebar Container */
+.portal-sidebar {
+  width: 390px;
+  max-width: 100%;
+  height: 100%;
+  background: rgba(11, 18, 32, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(249, 115, 22, 0.22);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  overflow: hidden;
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.55);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* Sidebar Tab Buttons - Human Warm Saffron & Slate */
+.sidebar-tab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font-main);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.sidebar-tab-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+.sidebar-tab-btn.active {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.35);
+  font-weight: 700;
+}
+
+/* Friendly Card Containers - Warm Charcoal & Saffron Accent */
+.portal-card {
+  background: linear-gradient(180deg, #10182b 0%, #0c1322 100%);
+  border: 1px solid rgba(249, 115, 22, 0.18);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+.portal-card:hover {
+  border-color: rgba(249, 115, 22, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 12px rgba(249, 115, 22, 0.15);
+}
+
+/* Input Card Styling - Uber Mobility */
+.portal-input-box {
+  background: #090a0c;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.portal-input-box:focus-within {
+  border-color: #276EF1;
+  box-shadow: 0 0 0 2px rgba(39, 110, 241, 0.3);
+}
+
+/* Status Pill Badges - Uber / Ola Mobility */
+.status-pill-safe {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(6, 193, 103, 0.15);
+  border: 1px solid rgba(6, 193, 103, 0.4);
+  color: #06C167;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.status-pill-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 192, 67, 0.15);
+  border: 1px solid rgba(255, 192, 67, 0.4);
+  color: #FFC043;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.status-pill-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* Buttons - Uber Mobility Pill Style */
 .dashboard-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
   font-family: var(--font-main);
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
   border: 1px solid transparent;
   user-select: none;
   white-space: nowrap;
   box-sizing: border-box;
-  flex-shrink: 0;
 }
-
 .dashboard-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
-/* Clean Solid Button Variants */
 .btn-electric {
-  background-color: var(--primary-blue);
+  background: #3b82f6;
   color: #ffffff;
   border: 1px solid #3b82f6;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .btn-electric:hover {
-  background-color: var(--primary-blue-hover);
-  border-color: #60a5fa;
+  background: #2563eb;
+}
+.btn-electric:hover {
+  background: #1f58c7;
+  box-shadow: 0 4px 16px rgba(39, 110, 241, 0.5);
 }
 
 .btn-emerald-glow {
-  background-color: var(--accent-emerald);
+  background: #10b981;
   color: #ffffff;
+  font-weight: 700;
   border: 1px solid #10b981;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .btn-emerald-glow:hover {
-  background-color: var(--accent-emerald-hover);
+  background: #059669;
 }
 
 .btn-danger-glow {
-  background-color: var(--accent-crimson);
+  background: #ef4444;
   color: #ffffff;
   border: 1px solid #ef4444;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-.btn-danger-glow:hover {
-  background-color: var(--accent-crimson-hover);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .btn-glass {
-  background-color: #1a243a;
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  background: #374151;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
 }
 .btn-glass:hover {
-  background-color: #24324f;
+  background: #4b5563;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.22);
+}
+.btn-glass:hover {
+  background: rgba(39, 42, 50, 0.95);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .btn-amber-active {
-  background-color: var(--accent-amber);
+  background: #d97706;
   color: #ffffff;
   border: 1px solid #f59e0b;
 }
 
 .btn-sos-active {
-  background-color: var(--accent-crimson);
+  background: #dc2626;
   color: #ffffff;
   border: 1px solid #ef4444;
 }
 
-/* Preset National Highway Corridor Chips */
+
+
+/* Route Shortcut Chips */
 .preset-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 0.68rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
   font-weight: 600;
-  background-color: #0e1524;
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #374151;
+  color: #d1d5db;
+  border: 1px solid #4b5563;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
   flex-shrink: 0;
-  box-sizing: border-box;
 }
 .preset-chip:hover {
-  background-color: #1a243a;
+  background: #4b5563;
   color: #ffffff;
-  border-color: #3b82f6;
 }
 .preset-chip.active {
-  background-color: #1a243a;
-  color: #38bdf8;
-  border-color: #38bdf8;
-  font-weight: 700;
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
 }
 
 /* Segmented Control Buttons */
 .segmented-group {
   display: inline-flex;
   align-items: center;
-  background-color: #090d16;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 1px;
-  gap: 1px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
   flex-shrink: 0;
   box-sizing: border-box;
 }
 .segmented-btn {
-  padding: 3px 8px;
-  border-radius: 3px;
+  padding: 4px 12px;
+  border-radius: 4px;
   border: none;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
   font-family: var(--font-main);
   cursor: pointer;
-  color: #94a3b8;
+  color: #9ca3af;
   background: transparent;
   transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   white-space: nowrap;
 }
 .segmented-btn:hover {
   color: #ffffff;
 }
 .segmented-btn.active-blue {
-  background-color: var(--primary-blue);
+  background: #276EF1;
   color: #ffffff;
 }
 .segmented-btn.active-red {
-  background-color: var(--accent-crimson);
+  background: #dc2626;
   color: #ffffff;
 }
 .segmented-btn.active-green {
-  background-color: var(--accent-emerald);
+  background: #06C167;
+  color: #000000;
+  font-weight: 800;
+}
+
+/* Telemetry Indicator Dot - Uber Green */
+.live-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #06C167;
+  box-shadow: 0 0 10px #06C167;
+  flex-shrink: 0;
+  animation: radarBlink 2s infinite ease-in-out;
+}
+
+@keyframes radarBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Floating Map Tool Buttons */
+.map-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: #1f2937;
+  color: #e5e7eb;
+  border: 1px solid #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.map-tool-btn:hover {
+  background: #374151;
   color: #ffffff;
 }
 
-/* Radar & Sensor Filter Tabs */
+/* Glass Panels (backward compatibility) */
+.glass-panel {
+  background: rgba(14, 21, 36, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+
+.glass-panel-elevated {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
 .radar-tab {
   flex: 1;
-  padding: 4px 6px;
+  padding: 5px 10px;
   border-radius: 4px;
   border: none;
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  font-family: var(--font-main);
-  white-space: nowrap;
+  gap: 4px;
+}
+
+/* Human-Centered Portal Component Styles */
+.human-greeting-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.friendly-tip-box {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.emergency-dial-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  text-decoration: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.emergency-dial-btn:hover {
+  background: #334155;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.human-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.human-chip:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #ffffff;
+  border-color: rgba(56, 189, 248, 0.4);
+}
+.human-chip.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+/* =========================================================
+   RENUKA LOGISTICS CORPORATE THEME STYLING
+   ========================================================= */
+
+.text-orange-2 {
+  color: #ff7f00 !important;
+}
+
+.bg-orange-2 {
+  background-color: #ff7f00 !important;
+}
+
+.border-orange-2 {
+  border-color: #ff7f00 !important;
+}
+
+/* Renuka Topbar */
+.renuka-topbar {
+  background-color: #131a22;
+  color: #e2e8f0;
+  font-size: 0.76rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 0;
+  width: 100%;
+}
+
+.renuka-topbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Renuka White Navbar */
+.renuka-navbar {
+  background-color: #ffffff;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 150;
+  width: 100%;
+  border-bottom: 2px solid #ff7f00;
+}
+
+.renuka-navbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.6rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.renuka-nav-link {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.84rem;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.renuka-nav-link:hover {
+  color: #ff7f00;
+  background-color: rgba(255, 127, 0, 0.08);
+}
+
+.renuka-nav-link.active {
+  color: #ff7f00;
+}
+
+/* Primary Renuka Orange CTA Button */
+.btn-renuka-orange {
+  background: linear-gradient(135deg, #ff7f00 0%, #ea580c 100%);
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 3px 10px rgba(255, 127, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+
+/* Renuka & Bharat Highway Suraksha Cross-Compatibility Tokens */
+.text-orange-2, .text-suraksha-saffron {
+  color: #f97316 !important;
+}
+.bg-orange-2, .bg-suraksha-saffron {
+  background-color: #f97316 !important;
+}
+.border-orange-2, .border-suraksha-saffron {
+  border-color: #f97316 !important;
+}
+
+/* 1. BHARAT HIGHWAY SURAKSHA TOPBAR */
+.suraksha-topbar, .renuka-topbar {
+  background-color: #0b111e;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  color: #94a3b8;
+  font-size: 0.76rem;
+  padding: 6px 0;
+  width: 100%;
+}
+.suraksha-topbar-inner, .renuka-topbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* 2. BHARAT HIGHWAY SURAKSHA NAVBAR */
+.suraksha-navbar, .renuka-navbar {
+  background: #ffffff;
+  border-bottom: 2px solid #f97316;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+}
+.suraksha-navbar-inner, .renuka-navbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.75rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.suraksha-nav-link, .renuka-nav-link {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 0.84rem;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.suraksha-nav-link:hover, .renuka-nav-link:hover {
+  color: #ea580c;
+  background-color: #fff7ed;
+}
+.suraksha-nav-link.active, .renuka-nav-link.active {
+  color: #ea580c;
+  border-bottom: 2px solid #ea580c;
+  border-radius: 0;
+}
+
+/* Human Action Buttons */
+.btn-suraksha-orange, .btn-renuka-orange {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+}
+.btn-suraksha-orange:hover, .btn-renuka-orange:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-suraksha-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.btn-suraksha-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+/* 3. HERO PRESENTATION */
+.suraksha-hero-wrapper, .renuka-hero-wrapper {
+  background: linear-gradient(180deg, #090e17 0%, #111a2e 55%, #0b1120 100%);
+  position: relative;
+  overflow: hidden;
+  border-bottom: 3px solid #f97316;
+}
+.suraksha-hero-content, .renuka-hero-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 2.8rem;
+  position: relative;
+  z-index: 10;
+}
+
+/* 4. HUMAN DASHBOARD CARDS & SECTION TITLES */
+.suraksha-section-title, .renuka-section-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 0.4rem;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+.suraksha-title-strip, .renuka-title-strip {
+  width: 68px;
+  height: 4px;
+  background: linear-gradient(90deg, #f97316, #fb923c);
+  margin: 0 auto 1.5rem;
+  border-radius: 4px;
+}
+
+.suraksha-card, .renuka-card {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.5rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+.suraksha-card:hover, .renuka-card:hover {
+  border-color: rgba(249, 115, 22, 0.45);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(249, 115, 22, 0.12), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.suraksha-circle-icon, .renuka-circle-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #f97316;
+  background-color: rgba(249, 115, 22, 0.08);
+  color: #f97316;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.suraksha-card:hover .suraksha-circle-icon, .renuka-card:hover .renuka-circle-icon {
+  background-color: #f97316;
+  color: #ffffff;
+  transform: scale(1.08);
+  box-shadow: 0 0 18px rgba(249, 115, 22, 0.6);
+}
+
+/* 5. HUMAN AUTH GATEWAY CARD */
+.suraksha-auth-gate {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
 }
 
-/* Operational Telemetry Dot */
-.live-indicator {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #10b981;
-  flex-shrink: 0;
+.suraksha-auth-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(17, 24, 39, 0.98) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 20px;
+  padding: 2.2rem;
+  max-width: 860px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(249, 115, 22, 0.12);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Floating Action Map Buttons */
-.map-tool-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 5px;
-  background-color: #0e1524;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e2e8f0;
+.suraksha-auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f97316, #fb923c, #10b981);
+}
+
+/* 6. BHARAT HIGHWAY SURAKSHA FOOTER */
+.suraksha-footer, .renuka-footer {
+  background-color: #0b1120;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  border-top: 4px solid #f97316;
+}
+.suraksha-footer-bottom, .renuka-footer-bottom {
+  background-color: #060911;
+  color: #64748b;
+  font-size: 0.74rem;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 7. MISSION CONTROL LAUNCH CARD & STANDALONE MAP HEADER */
+.suraksha-launch-card {
+  background: linear-gradient(145deg, #0e1628 0%, #0a0f1d 100%);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  border-radius: 20px;
+  padding: 2.2rem;
+  max-width: 960px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 35px rgba(249, 115, 22, 0.12);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.suraksha-launch-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #f97316 0%, #fb923c 50%, #10b981 100%);
+}
+
+.suraksha-map-header {
+  background: linear-gradient(90deg, #0b1220 0%, #111a2e 50%, #0b1220 100%);
+  border-bottom: 2px solid rgba(249, 115, 22, 0.35);
+  padding: 0.6rem 1.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.suraksha-telemetry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  color: #f97316;
+}
+
+/* ========================================================
+   MODERN DISTINCT RENUKA LOGISTICS DESIGN SYSTEM
+   Electric Royal Blue, Saffron Amber, Titanium Glass
+   ======================================================== */
+.renuka-body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.font-outfit {
+  font-family: 'Outfit', -apple-system, sans-serif !important;
+}
+
+.font-jakarta {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif !important;
+}
+
+/* Color Utilities */
+.text-brand-blue {
+  color: #2563eb !important;
+}
+
+.text-brand-amber {
+  color: #f59e0b !important;
+}
+
+.text-brand-emerald {
+  color: #10b981 !important;
+}
+
+.bg-brand-blue {
+  background-color: #2563eb !important;
+}
+
+.bg-brand-amber {
+  background-color: #f59e0b !important;
+}
+
+.gradient-text-blue {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-amber {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Modern Decorative Line */
+.title-line-modern {
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+  border-radius: 2px;
+  margin: 10px auto 20px auto;
+}
+
+.title-line-modern.align-left {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.title-line-modern.amber {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+}
+
+/* Modern Button Styles */
+.btn-modern-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff !important;
+  padding: 11px 26px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.btn-modern-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.5);
+}
+
+.btn-modern-amber {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff !important;
+  padding: 11px 26px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.btn-modern-amber:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.5);
+}
+
+.btn-modern-outline {
+  border: 1.5px solid #2563eb;
+  color: #2563eb !important;
+  background: transparent;
+  padding: 9px 24px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.btn-modern-outline:hover {
+  background-color: #2563eb;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25);
+}
+
+.btn-modern-outline-white {
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  padding: 10px 24px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.btn-modern-outline-white:hover {
+  background-color: #ffffff;
+  color: #0f172a !important;
+  border-color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* Modern Card & Tile Styles */
+.modern-service-card {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-service-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.12);
+  border-color: #93c5fd;
+}
+
+.modern-review-card {
+  position: relative;
+  background: #ffffff;
+  padding: 26px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-top: 4px solid #2563eb;
+  transition: transform 0.3s ease;
+}
+
+.modern-review-card:hover {
+  transform: translateY(-4px);
+}
+
+.modern-review-card .speech-notch {
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #ffffff;
+  position: absolute;
+  bottom: -10px;
+  left: 36px;
+}
+
+/* Route Pill */
+.route-pill-modern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.route-pill-modern:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: translateX(4px);
+}
+
+/* Route Pill */
+.route-pill-modern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.route-pill-modern:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: translateX(4px);
+}
+
+/* ==========================================================================
+   ALTARA RESIDENCES LUXURY MAP DESIGN SYSTEM
+   ========================================================================== */
+.altara-navbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  padding: 0 2rem;
+  background: rgba(8, 12, 22, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justifyContent: space-between;
+  align-items: center;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.altara-nav-link {
+  font-family: 'Outfit', var(--font-main);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.72);
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.altara-nav-link:hover, .altara-nav-link.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+}
+
+.altara-brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.altara-brand-badge {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(212, 175, 55, 0.15);
+  color: #e2b76e;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+}
+
+.altara-panel-glass {
+  background: rgba(10, 15, 26, 0.85);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+.altara-card-subtle {
+  background: rgba(18, 25, 40, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.altara-card-subtle:hover {
+  background: rgba(24, 34, 54, 0.8);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.altara-gold-pill {
+  background: linear-gradient(135deg, #d4af37, #b8860b);
+  color: #080c14;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.altara-gold-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.4);
+}
+
+/* ==========================================================================
+   NIXTIO CLEAN DELIVERY & TRACKING DESIGN SYSTEM
+   ========================================================================== */
+.nixtio-map-canvas {
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  background-color: #f1f6f9;
+}
+
+.nixtio-search-pill {
+  background: #ffffff;
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  transition: all 0.2s ease;
+}
+
+.nixtio-search-pill:hover {
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+  border-color: #cbd5e1;
+}
+
+.nixtio-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
-  transition: all 0.15s ease;
-  box-sizing: border-box;
-  flex-shrink: 0;
+  color: #334155;
+  transition: all 0.2s ease;
 }
-.map-tool-btn:hover {
-  background-color: #1a243a;
+
+.nixtio-circle-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+}
+
+.nixtio-card {
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nixtio-unit-card {
+  background: #f8fafc;
+  border-radius: 18px;
+  border: 1.5px solid #e2e8f0;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nixtio-unit-card:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  transform: translateY(-2px);
+}
+
+.nixtio-unit-card.active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.15);
+}
+
+.nixtio-btn-dark {
+  background: #0f172a;
   color: #ffffff;
-  border-color: #38bdf8;
+  font-family: 'Outfit', var(--font-main);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
+  transition: all 0.2s ease;
+  text-decoration: none;
 }
 
-/* Monospace Telemetry Metric Numbers */
-.metric-telemetry {
-  font-family: var(--font-mono);
-  font-feature-settings: 'tnum' on, 'zero' on;
-  letter-spacing: -0.02em;
+.nixtio-btn-dark:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.28);
 }
 
-/* Text Truncation Helper */
-.text-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+
+
+
+
+/* ========================================================
+   UBER / OLA MOBILITY UI UTILITIES & CARDS
+   ======================================================== */
+.uber-where-to-card {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(6, 193, 103, 0.12);
+  color: #ffffff;
+}
+
+.uber-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.uber-pill-green {
+  background: #06C167;
+  color: #000000;
+}
+
+.uber-pill-dark {
+  background: #14161b;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.uber-pill-white {
+  background: #ffffff;
+  color: #000000;
+}
+
+.uber-ride-tier {
+  background: #14161b;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uber-ride-tier:hover {
+  background: #1c1f26;
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.uber-ride-tier.selected {
+  background: #141c18;
+  border-color: #06C167;
+  box-shadow: 0 0 20px rgba(6, 193, 103, 0.25);
+}
+
+.uber-journey-connector {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.uber-journey-dot-pickup {
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  border-radius: 2px;
+}
+
+.uber-journey-line {
+  width: 2px;
+  flex: 1;
+  min-height: 28px;
+  background: repeating-linear-gradient(to bottom, #ffffff 0, #ffffff 4px, transparent 4px, transparent 8px);
+}
+
+.uber-journey-dot-dropoff {
+  width: 10px;
+  height: 10px;
+  background-color: #06C167;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #06C167;
 }

@@ -331,10 +331,10 @@ export default function IncidentReportApp() {
             </div>
             <div>
               <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
-                Highway Hazard & Road Cut Report
+                Highway Hazard & Incident Report
               </h1>
-              <p style={{ fontSize: '0.74rem', color: '#94a3b8', margin: '2px 0 0 0' }}>
-                Offline-Resilient Emergency Notification System (IndexedDB + Supabase)
+              <p style={{ fontSize: '0.74rem', color: '#f97316', margin: '2px 0 0 0', fontWeight: 700 }}>
+                Bharat Highway Suraksha • भारत राजमार्ग सुरक्षा Ground Alert Network
               </p>
             </div>
           </div>

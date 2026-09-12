@@ -3,14 +3,14 @@ import { Toaster } from 'react-hot-toast';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Bharat Highway Suraksha | NER Resilient Logistics & Highway Operations Center',
-  description: 'National Highway Geotechnical Telemetry, Corridor Disaster Mitigation, and Heavy Freight Convoy Operations (MoRTH / PM GatiShakti)',
+  title: 'Logistics Services and Supply-Chain Solution - Renuka Logistics',
+  description: 'Get all types of transportation solutions you need to support your business growth. We at Renuka Logistics offers cost-effective logistics services and supply-chain management solution for domestic and international customers.',
   manifest: '/manifest.json',
-  applicationName: 'Highway Suraksha',
+  applicationName: 'Renuka Logistics',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Highway Suraksha',
+    title: 'Renuka Logistics',
   },
   icons: {
     icon: '/icon-192.png',
@@ -36,10 +36,13 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#090d16" />
+        <meta name="theme-color" content="#1d4ed8" />
       </head>
       <body>
         <Toaster

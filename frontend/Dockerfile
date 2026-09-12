@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Argument for Google Maps API key and Supabase credentials during Next.js static page generation
-ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDkis0HFmgKNF_RuBS6rHZz-aUxVkqUyd4
+ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyBxjAGUg7mfZj4VnYVnIAk6LpkXa33oT6k
 ARG NEXT_PUBLIC_SUPABASE_URL=https://mfpgdfrmuoevzugmegja.supabase.co
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv
 ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_kzPTciGQHCtLPCDBlZFxFA_rV3rQERv

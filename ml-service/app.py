@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from model import hazard_system, fine_tuner, predict_risk
+from isro_landslide_atlas import ISRO_STATE_INVENTORY, ISRO_DISTRICT_RANKINGS, CORRIDOR_ISRO_MAPPING
 
 app = FastAPI(
     title="NER Smart Logistics - Landslide & Flood AI Prediction Service",
@@ -102,6 +103,29 @@ def health_check():
 def get_model_info():
     hazard_system._ensure_loaded()
     return hazard_system.metadata
+
+@app.get("/isro_atlas/summary")
+def get_isro_atlas_summary():
+    """
+    Returns official ISRO Landslide Atlas 2023 state inventory counts
+    and database statistics for the North Eastern Region.
+    """
+    return {
+        "title": "ISRO Landslide Atlas of India 2023 - NER Geospatial Database",
+        "agency": "National Remote Sensing Centre (NRSC), ISRO",
+        "total_ner_mapped_landslides": sum(s['total_mapped_landslides'] for s in ISRO_STATE_INVENTORY.values()),
+        "state_inventories": ISRO_STATE_INVENTORY,
+        "total_districts_indexed": len(ISRO_DISTRICT_RANKINGS)
+    }
+
+@app.get("/isro_atlas/districts")
+def get_isro_atlas_districts(state: Optional[str] = None):
+    """
+    Queries district landslide exposure rankings from ISRO Landslide Atlas 2023 Table 3.
+    """
+    if state:
+        return {d: info for d, info in ISRO_DISTRICT_RANKINGS.items() if info['state'].lower() == state.lower()}
+    return ISRO_DISTRICT_RANKINGS
 
 @app.post("/predict_risk")
 def calculate_risk(req: LegacyRiskRequest):

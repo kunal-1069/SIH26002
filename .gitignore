@@ -45,6 +45,7 @@ env/
 .env_python/
 ml-service/venv/
 ml-service/.venv/
+ml-service/checkpoints/
 
 # IDEs and Editors
 .vscode/
@@ -71,3 +72,5 @@ pids
 .system_generated/
 scratch/
 *.tsbuildinfo
+merged_output_*.csv
+Landslide_Atlas_2023.pdf

@@ -64,17 +64,20 @@ The prediction service implements a **modular multi-task ensemble architecture**
                               └────────────────────────────────────────┘
 ```
 
-### Models in the Ensemble:
-1. **`landslide_clf` (`RandomForestClassifier`)**:
-   - 100 estimators, max depth 12, warm-start enabled.
-   - Evaluates slope gradient, 24h rain, 72h antecedent saturation, clay fraction, NDVI, historical incidents, and road quality.
-2. **`flood_clf` (`RandomForestClassifier`)**:
-   - 100 estimators, max depth 12, warm-start enabled.
-   - Predicts inundation occurrence and probability.
-3. **`flood_depth_reg` (`RandomForestRegressor`)**:
-   - 60 estimators, trained on flooded regimes to estimate standing water column ($5\text{ cm} - 180\text{ cm}$).
-4. **`risk_mult_reg` (`RandomForestRegressor`)**:
-   - 80 estimators, predicts the continuous routing cost multiplier ($1.0\times - 5.0\times$) for Neo4j Dijkstra shortest-path calculations.
+### Models in the Production Ensemble (XGBoost 3.4.1):
+1. **`landslide_clf` (`xgb.XGBClassifier`)**:
+   - 120 boosted trees, `max_depth=6`, `learning_rate=0.08`, `subsample=0.85`, `colsample_bytree=0.85`, `eval_metric='logloss'`.
+   - Evaluates slope gradient, 24h rain, 72h antecedent saturation, clay fraction, soil moisture index, NDVI vegetation, historical incidents, and road quality.
+2. **`flood_clf` (`xgb.XGBClassifier`)**:
+   - 120 boosted trees, `max_depth=6`, `learning_rate=0.08`, `subsample=0.85`, `colsample_bytree=0.85`, `eval_metric='logloss'`.
+   - Predicts inundation occurrence and probability based on elevation basin, river proximity, and rainfall intensity.
+3. **`flood_depth_reg` (`xgb.XGBRegressor`)**:
+   - 80 boosted trees, `max_depth=5`, `learning_rate=0.08`, `eval_metric='rmse'`.
+   - Trained on flooded regimes to estimate standing water column ($5\text{ cm} - 180\text{ cm}$).
+4. **`risk_mult_reg` (`xgb.XGBRegressor`)**:
+   - 100 boosted trees, `max_depth=5`, `learning_rate=0.08`, `eval_metric='rmse'`.
+   - Predicts continuous routing cost penalty factor ($1.0\times - 5.0\times$) for Neo4j Dijkstra shortest-path calculations.
+*(Note: A legacy `RandomForest` fallback is also preserved within `DualHazardModelSystem` via `backend="random_forest"`).*
 
 ---
 
@@ -88,6 +91,7 @@ The prediction service implements a **modular multi-task ensemble architecture**
 | `rainfall_24h_mm` | `float` | $0.0 - 400.0\text{ mm}$ | Hydrometeorological | 24-hour cumulative rainfall. Primary trigger for slope failure. |
 | `rainfall_72h_mm` | `float` | $0.0 - 800.0\text{ mm}$ | Hydrometeorological | 3-day antecedent precipitation index (soil saturation proxy). |
 | `soil_clay_percent`| `float` | $10.0\% - 65.0\%$ | Geotechnical | Clay fraction. High clay expands and softens during heavy rain. |
+| `soil_moisture_index`| `float` | $0.0 - 1.0$ | Hydrological | Surface soil saturation index proxy. |
 | `distance_to_river_m`| `float` | $10\text{ m} - 5000\text{ m}$ | Hydrological | Distance to nearest river channel or major drainage nullah. |
 | `vegetation_ndvi` | `float` | $0.05 - 0.90$ | Ecological | Normalized Difference Vegetation Index. High canopy provides root cohesion. |
 | `historical_incidents`| `int` | $0 - 25$ | Historical | Number of past documented landslide or flood blockages on this corridor. |
@@ -95,42 +99,44 @@ The prediction service implements a **modular multi-task ensemble architecture**
 
 ---
 
-## 5. Model Performance & Benchmarks
+## 5. Model Performance & Benchmarks (7-State IMD Gridded Rainfall Fine-Tuning)
 
-The models were calibrated and validated on a stratified test partition ($N = 800$) modeling real NER highway conditions:
+The models were fine-tuned and validated on **24,500 real-world IMD observations** across all Seven Sister states (Arunachal Pradesh, Assam, Meghalaya, Manipur, Mizoram, Nagaland, Tripura) with an 80/20 stratified test split ($N_{test} = 4,900$):
 
 ### 5.1 Landslide Classification Metrics
-- **ROC-AUC**: **0.8777** (87.8% discrimination capability)
-- **Accuracy**: **81.13%**
-- **Precision**: **79.80%**
-- **Recall**: **59.56%**
-- **F1-Score**: **0.6821**
-- **Feature Importances**:
-  1. `slope_deg`: **26.92%**
-  2. `rainfall_24h_mm`: **24.18%**
-  3. `rainfall_72h_mm`: **23.99%**
-  4. `vegetation_ndvi`: **8.98%**
-  5. `soil_clay_percent`: **8.71%**
-  6. `historical_incidents`: **3.99%**
-  7. `road_quality`: **3.23%**
+- **ROC-AUC**: **0.9962** (Near-perfect discrimination)
+- **Accuracy**: **97.53%**
+- **Precision**: **89.92%**
+- **Recall**: **91.72%**
+- **F1-Score**: **0.9081**
+- **Feature Importances (Gain)**:
+  1. `soil_moisture_index`: **37.99%** (Primary antecedent saturation proxy)
+  2. `slope_deg`: **22.58%** (Geotechnical gravitational shear trigger)
+  3. `rainfall_72h_mm`: **22.26%** (3-day cumulative rainfall pore pressure)
+  4. `rainfall_24h_mm`: **8.06%** (Direct 24-hour storm rainfall trigger)
+  5. `vegetation_ndvi`: **3.34%** (Root reinforcement)
+  6. `historical_incidents`: **2.83%**
+  7. `road_quality`: **1.51%**
+  8. `soil_clay_percent`: **1.43%**
 
 ### 5.2 Flood Classification Metrics
-- **ROC-AUC**: **0.8333** (83.3% discrimination capability)
-- **Accuracy**: **77.75%**
-- **Precision**: **67.94%**
-- **Recall**: **56.13%**
-- **F1-Score**: **0.6147**
-- **Feature Importances**:
-  1. `elevation_m`: **28.44%**
-  2. `rainfall_24h_mm`: **20.94%**
-  3. `distance_to_river_m`: **18.70%**
-  4. `rainfall_1h_mm`: **17.87%**
-  5. `soil_clay_percent`: **10.56%**
-  6. `road_quality`: **3.49%**
+- **ROC-AUC**: **0.9960**
+- **Accuracy**: **97.55%**
+- **Precision**: **90.96%**
+- **Recall**: **87.41%**
+- **F1-Score**: **0.8915**
+- **Feature Importances (Gain)**:
+  1. `elevation_m`: **30.52%** (Alluvial basin terrain trapping floodwaters)
+  2. `rainfall_24h_mm`: **29.08%** (Daily rainfall surcharge)
+  3. `distance_to_river_m`: **18.62%** (Proximity to Brahmaputra & Barak drainage basins)
+  4. `rainfall_1h_mm`: **11.62%** (Cloudburst flash flood trigger)
+  5. `soil_moisture_index`: **4.28%**
+  6. `road_quality`: **3.25%**
+  7. `soil_clay_percent`: **2.64%**
 
 ### 5.3 Routing Multiplier Regression Metrics
-- **$R^2$ Score**: **0.9527** (95.3% of variance in route delays explained)
-- **Root Mean Squared Error (RMSE)**: **0.2039**
+- **$R^2$ Score**: **0.9880** (98.8% of variance in route delays explained)
+- **Root Mean Squared Error (RMSE)**: **0.0657** (Extremely low routing estimation variance)
 
 ---
 

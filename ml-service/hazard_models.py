@@ -10,6 +10,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
+import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, HistGradientBoostingClassifier
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, precision_score, recall_score, mean_squared_error
 
@@ -61,54 +62,105 @@ class DualHazardModelSystem:
     flood_depth_reg: Any
     risk_mult_reg: Any
 
-    def __init__(self):
+    def __init__(self, backend="xgboost"):
         self.landslide_clf: Any = None
         self.flood_clf: Any = None
         self.flood_depth_reg: Any = None
         self.risk_mult_reg: Any = None
+        self.backend: str = backend
         self.metadata = {}
         self.is_trained = False
 
-    def train_baseline(self, train_df, test_df=None):
+    def train_baseline(self, train_df, test_df=None, backend=None):
         """
         Trains baseline ensemble models across both hazards and composite risk multiplier.
+        Supports both 'xgboost' and 'random_forest' backends.
         """
-        print("Training Landslide Classification Model...")
-        X_ls = train_df[LANDSLIDE_FEATURES]
-        y_ls = train_df['landslide_occurred']
-        self.landslide_clf = RandomForestClassifier(
-            n_estimators=100, max_depth=12, min_samples_split=4,
-            random_state=42, warm_start=True
-        )
-        self.landslide_clf.fit(X_ls, y_ls)
+        if backend is not None:
+            self.backend = backend
 
-        print("Training Flood Hazard Classification & Depth Regressor...")
-        X_fl = train_df[FLOOD_FEATURES]
-        y_fl = train_df['flood_occurred']
-        self.flood_clf = RandomForestClassifier(
-            n_estimators=100, max_depth=12, min_samples_split=4,
-            random_state=42, warm_start=True
-        )
-        self.flood_clf.fit(X_fl, y_fl)
+        if self.backend == "xgboost":
+            print("Training Landslide Classification Model with XGBoost...")
+            X_ls = train_df[LANDSLIDE_FEATURES]
+            y_ls = train_df['landslide_occurred']
+            self.landslide_clf = xgb.XGBClassifier(
+                n_estimators=120, max_depth=6, learning_rate=0.08,
+                subsample=0.85, colsample_bytree=0.85,
+                eval_metric='logloss', random_state=42
+            )
+            self.landslide_clf.fit(X_ls, y_ls)
 
-        # Flood depth regressor on flooded instances
-        flooded_subset = train_df[train_df['flood_occurred'] == 1]
-        if len(flooded_subset) < 10:
-            flooded_subset = train_df
-        X_fd = flooded_subset[FLOOD_FEATURES]
-        y_fd = flooded_subset['inundation_depth_cm']
-        self.flood_depth_reg = RandomForestRegressor(
-            n_estimators=60, max_depth=10, random_state=42
-        )
-        self.flood_depth_reg.fit(X_fd, y_fd)
+            print("Training Flood Hazard Classification & Depth Regressor with XGBoost...")
+            X_fl = train_df[FLOOD_FEATURES]
+            y_fl = train_df['flood_occurred']
+            self.flood_clf = xgb.XGBClassifier(
+                n_estimators=120, max_depth=6, learning_rate=0.08,
+                subsample=0.85, colsample_bytree=0.85,
+                eval_metric='logloss', random_state=42
+            )
+            self.flood_clf.fit(X_fl, y_fl)
 
-        print("Training Composite Route Risk Multiplier Regressor...")
-        X_rm = train_df[RISK_MULTIPLIER_FEATURES]
-        y_rm = train_df['risk_multiplier']
-        self.risk_mult_reg = RandomForestRegressor(
-            n_estimators=80, max_depth=10, random_state=42
-        )
-        self.risk_mult_reg.fit(X_rm, y_rm)
+            # Flood depth regressor on flooded instances
+            flooded_subset = train_df[train_df['flood_occurred'] == 1]
+            if len(flooded_subset) < 10:
+                flooded_subset = train_df
+            X_fd = flooded_subset[FLOOD_FEATURES]
+            y_fd = flooded_subset['inundation_depth_cm']
+            self.flood_depth_reg = xgb.XGBRegressor(
+                n_estimators=80, max_depth=5, learning_rate=0.08,
+                eval_metric='rmse', random_state=42
+            )
+            self.flood_depth_reg.fit(X_fd, y_fd)
+
+            print("Training Composite Route Risk Multiplier Regressor with XGBoost...")
+            X_rm = train_df[RISK_MULTIPLIER_FEATURES]
+            y_rm = train_df['risk_multiplier']
+            self.risk_mult_reg = xgb.XGBRegressor(
+                n_estimators=100, max_depth=5, learning_rate=0.08,
+                eval_metric='rmse', random_state=42
+            )
+            self.risk_mult_reg.fit(X_rm, y_rm)
+            model_type_label = 'XGBoost Dual-Hazard Gradient Boosted Ensemble'
+            version_label = '2.1.0-xgboost'
+        else:
+            print("Training Landslide Classification Model with RandomForest...")
+            X_ls = train_df[LANDSLIDE_FEATURES]
+            y_ls = train_df['landslide_occurred']
+            self.landslide_clf = RandomForestClassifier(
+                n_estimators=100, max_depth=12, min_samples_split=4,
+                random_state=42, warm_start=True
+            )
+            self.landslide_clf.fit(X_ls, y_ls)
+
+            print("Training Flood Hazard Classification & Depth Regressor with RandomForest...")
+            X_fl = train_df[FLOOD_FEATURES]
+            y_fl = train_df['flood_occurred']
+            self.flood_clf = RandomForestClassifier(
+                n_estimators=100, max_depth=12, min_samples_split=4,
+                random_state=42, warm_start=True
+            )
+            self.flood_clf.fit(X_fl, y_fl)
+
+            # Flood depth regressor on flooded instances
+            flooded_subset = train_df[train_df['flood_occurred'] == 1]
+            if len(flooded_subset) < 10:
+                flooded_subset = train_df
+            X_fd = flooded_subset[FLOOD_FEATURES]
+            y_fd = flooded_subset['inundation_depth_cm']
+            self.flood_depth_reg = RandomForestRegressor(
+                n_estimators=60, max_depth=10, random_state=42
+            )
+            self.flood_depth_reg.fit(X_fd, y_fd)
+
+            print("Training Composite Route Risk Multiplier Regressor with RandomForest...")
+            X_rm = train_df[RISK_MULTIPLIER_FEATURES]
+            y_rm = train_df['risk_multiplier']
+            self.risk_mult_reg = RandomForestRegressor(
+                n_estimators=80, max_depth=10, random_state=42
+            )
+            self.risk_mult_reg.fit(X_rm, y_rm)
+            model_type_label = 'Calibrated Ensemble (RandomForest + Multi-Task Regressors)'
+            version_label = '2.0.0-dual-hazard'
 
         self.is_trained = True
 
@@ -156,8 +208,9 @@ class DualHazardModelSystem:
             }
 
         self.metadata = {
-            'version': '2.0.0-dual-hazard',
-            'model_type': 'Calibrated Ensemble (RandomForest + Multi-Task Regressors)',
+            'version': version_label,
+            'model_type': model_type_label,
+            'backend': self.backend,
             'trained_at': datetime.now(timezone.utc).isoformat(),
             'total_train_samples': len(train_df),
             'metrics': metrics
@@ -366,6 +419,7 @@ class DualHazardModelSystem:
             'flood_clf': self.flood_clf,
             'flood_depth_reg': self.flood_depth_reg,
             'risk_mult_reg': self.risk_mult_reg,
+            'backend': self.backend,
             'metadata': self.metadata
         }
         joblib.dump(bundle, MODEL_BUNDLE_PATH)
@@ -386,7 +440,7 @@ class DualHazardModelSystem:
                 build_and_save_datasets(MODEL_DIR)
             df_train = pd.read_csv(train_path)
             df_test = pd.read_csv(test_path)
-            self.train_baseline(df_train, df_test)
+            self.train_baseline(df_train, df_test, backend="xgboost")
             return
 
         bundle = joblib.load(MODEL_BUNDLE_PATH)
@@ -394,6 +448,7 @@ class DualHazardModelSystem:
         self.flood_clf = bundle['flood_clf']
         self.flood_depth_reg = bundle['flood_depth_reg']
         self.risk_mult_reg = bundle['risk_mult_reg']
+        self.backend = bundle.get('backend', 'xgboost')
         self.metadata = bundle.get('metadata', {})
         self.is_trained = True
 

@@ -7,3 +7,4 @@ pandas
 numpy
 pydantic
 requests
+xgboost>=2.0.0

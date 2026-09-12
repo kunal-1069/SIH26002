@@ -135,7 +135,7 @@ class FineTuningEngine:
 
         previous_metrics = self.system.metadata.get('metrics', {})
 
-        if mode == "warm_start" and self.system.is_trained:
+        if mode == "warm_start" and self.system.is_trained and getattr(self.system, 'backend', 'random_forest') == 'random_forest':
             print(f"Performing incremental warm-start fine-tuning (+{add_trees} estimators)...")
             # Sample balanced experience replay buffer from historical records to guarantee both classes exist
             if os.path.exists(TRAIN_DATA_PATH):
@@ -151,7 +151,7 @@ class FineTuningEngine:
             # Check if all classes present; if not, fallback to full fast retrain
             if len(np.unique(replay_df['landslide_occurred'])) < 2 or len(np.unique(replay_df['flood_occurred'])) < 2:
                 print("Single-class replay detected. Falling back to calibrated fast retrain...")
-                self.system.train_baseline(combined_train_df, test_df)
+                self.system.train_baseline(combined_train_df, test_df, backend="random_forest")
             else:
                 assert self.system.landslide_clf is not None
                 assert self.system.flood_clf is not None
@@ -168,8 +168,9 @@ class FineTuningEngine:
                 # Retrain fast regressors
                 self.system.risk_mult_reg.fit(combined_train_df[RISK_MULTIPLIER_FEATURES], combined_train_df['risk_multiplier'])
         else:
-            print(f"Performing calibrated full retraining across {len(combined_train_df)} observations...")
-            self.system.train_baseline(combined_train_df, test_df)
+            backend_mode = getattr(self.system, 'backend', 'xgboost')
+            print(f"Performing calibrated {backend_mode.upper()} retraining across {len(combined_train_df)} observations...")
+            self.system.train_baseline(combined_train_df, test_df, backend=backend_mode)
 
         # Persist updated training dataset
         combined_train_df.to_csv(TRAIN_DATA_PATH, index=False)

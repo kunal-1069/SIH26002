@@ -84,6 +84,19 @@ def test_endpoints():
     assert r.status_code == 200
     print("Feed Incident Response:", json.dumps(r.json(), indent=2))
 
+    print("\n7. Testing ISRO Atlas Endpoints...")
+    r_sum = client.get("/isro_atlas/summary")
+    assert r_sum.status_code == 200
+    sum_data = r_sum.json()
+    assert sum_data.get("total_ner_mapped_landslides") == 42547
+    print(f"ISRO Atlas Summary verified: {sum_data['total_ner_mapped_landslides']} landslides across {len(sum_data['state_inventories'])} states")
+
+    r_dist = client.get("/isro_atlas/districts?state=Manipur")
+    assert r_dist.status_code == 200
+    dist_data = r_dist.json()
+    assert len(dist_data) > 0
+    print(f"ISRO Atlas Manipur districts verified ({len(dist_data)} districts)")
+
     print("\nALL API TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":

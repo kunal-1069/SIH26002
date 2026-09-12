@@ -109,14 +109,30 @@ export default function RegisterPage() {
           // Backend is optional; Supabase is primary
         }
 
-        toast.success('Responder officially enrolled into Emergency Network.');
+        try {
+          localStorage.setItem('bharat_suraksha_officer', JSON.stringify({
+            email: formData.email,
+            name: formData.name,
+            role: 'HIGHWAY_RESPONDER',
+            division: formData.division
+          }));
+        } catch (_) {}
+
+        toast.success('Responder officially enrolled into Bharat Highway Suraksha Network.');
         setFormData({ name: '', email: '', phone: '', password: '', division: 'Guwahati Division (Assam)' });
 
       } else {
         // Sign In Mode
         const signInRes = await signInWithSupabase(formData.email, formData.password);
         if (signInRes.success) {
-          toast.success('Successfully authenticated via Supabase!');
+          try {
+            localStorage.setItem('bharat_suraksha_officer', JSON.stringify({
+              email: formData.email,
+              name: signInRes.data?.user?.user_metadata?.full_name || formData.email.split('@')[0],
+              role: 'HIGHWAY_OFFICER'
+            }));
+          } catch (_) {}
+          toast.success('Successfully authenticated! GIS Radar unlocked.');
         } else {
           toast.error(`Sign in failed: ${signInRes.error}`);
         }
@@ -130,7 +146,10 @@ export default function RegisterPage() {
 
   const handleSignOut = async () => {
     await signOutSupabase();
-    toast.success('Signed out from Supabase session.');
+    try {
+      localStorage.removeItem('bharat_suraksha_officer');
+    } catch (_) {}
+    toast.success('Signed out from Bharat Highway Suraksha session.');
   };
 
   return (
@@ -200,10 +219,10 @@ export default function RegisterPage() {
             </div>
             <div>
               <h1 style={{ color: '#ffffff', fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.01em' }}>
-                Field Responder Portal
+                Bharat Highway Suraksha Responder Portal
               </h1>
-              <p style={{ color: '#94a3b8', fontSize: '0.74rem', margin: '2px 0 0 0' }}>
-                Supabase Auth & Operational Database Integration
+              <p style={{ color: '#f97316', fontSize: '0.74rem', margin: '2px 0 0 0', fontWeight: 700 }}>
+                भारत राजमार्ग सुरक्षा • Official Responder & Transporter Gateway
               </p>
             </div>
           </div>

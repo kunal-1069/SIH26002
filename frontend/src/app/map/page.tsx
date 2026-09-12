@@ -1,5 +1,35 @@
 'use client';
 
+// Polyfill missing metadata properties on Google Maps Custom Elements in v3.65+
+if (typeof Object !== 'undefined' && !Object.prototype.hasOwnProperty('Pp')) {
+  try {
+    Object.defineProperty(Object.prototype, 'Pp', {
+      get: function() {
+        if (!this._gmp_Pp) this._gmp_Pp = new Map();
+        return this._gmp_Pp;
+      },
+      set: function(v) {
+        Object.defineProperty(this, 'Pp', { value: v, writable: true, configurable: true, enumerable: true });
+      },
+      configurable: true,
+      enumerable: false
+    });
+    if (!Object.prototype.hasOwnProperty('aA')) {
+      Object.defineProperty(Object.prototype, 'aA', {
+        get: function() {
+          if (!this._gmp_aA) this._gmp_aA = new Map();
+          return this._gmp_aA;
+        },
+        set: function(v) {
+          Object.defineProperty(this, 'aA', { value: v, writable: true, configurable: true, enumerable: true });
+        },
+        configurable: true,
+        enumerable: false
+      });
+    }
+  } catch (_) {}
+}
+
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import toast from 'react-hot-toast';

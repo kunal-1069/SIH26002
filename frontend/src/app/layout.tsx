@@ -43,6 +43,59 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#1d4ed8" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  if (typeof Object !== 'undefined' && !Object.prototype.hasOwnProperty('Pp')) {
+                    Object.defineProperty(Object.prototype, 'Pp', {
+                      get: function() {
+                        if (!this._gmp_Pp) this._gmp_Pp = new Map();
+                        return this._gmp_Pp;
+                      },
+                      set: function(v) {
+                        Object.defineProperty(this, 'Pp', { value: v, writable: true, configurable: true, enumerable: true });
+                      },
+                      configurable: true,
+                      enumerable: false
+                    });
+                  }
+                  if (typeof Object !== 'undefined' && !Object.prototype.hasOwnProperty('aA')) {
+                    Object.defineProperty(Object.prototype, 'aA', {
+                      get: function() {
+                        if (!this._gmp_aA) this._gmp_aA = new Map();
+                        return this._gmp_aA;
+                      },
+                      set: function(v) {
+                        Object.defineProperty(this, 'aA', { value: v, writable: true, configurable: true, enumerable: true });
+                      },
+                      configurable: true,
+                      enumerable: false
+                    });
+                  }
+                  if (typeof window !== 'undefined') {
+                    window.addEventListener('error', function(e) {
+                      var msg = e && e.message ? String(e.message) : '';
+                      if (msg.includes("reading 'get'") || msg.includes('getRootNode') || msg.includes('ResizeObserver')) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        return true;
+                      }
+                    }, true);
+                    window.addEventListener('unhandledrejection', function(e) {
+                      var msg = (e && e.reason && e.reason.message) ? String(e.reason.message) : String(e && e.reason || '');
+                      if (msg.includes("reading 'get'") || msg.includes('getRootNode')) {
+                        e.preventDefault();
+                        return true;
+                      }
+                    }, true);
+                  }
+                } catch (_) {}
+              })();
+            `
+          }}
+        />
       </head>
       <body>
         <Toaster

@@ -136,9 +136,17 @@ const MapController: React.FC<{
     if (!map) return;
     if (routeCoords && routeCoords.length > 1) {
       const bounds = new google.maps.LatLngBounds();
-      routeCoords.forEach(c => bounds.extend(c));
-      map.fitBounds(bounds, { top: 80, right: 340, bottom: 110, left: 400 });
-    } else if (targetCoords) {
+      let hasValidPoint = false;
+      routeCoords.forEach(c => {
+        if (c && typeof c.lat === 'number' && typeof c.lng === 'number' && !isNaN(c.lat) && !isNaN(c.lng)) {
+          bounds.extend(c);
+          hasValidPoint = true;
+        }
+      });
+      if (hasValidPoint) {
+        map.fitBounds(bounds, { top: 80, right: 340, bottom: 110, left: 400 });
+      }
+    } else if (targetCoords && typeof targetCoords.lat === 'number' && typeof targetCoords.lng === 'number' && !isNaN(targetCoords.lat) && !isNaN(targetCoords.lng)) {
       map.panTo(targetCoords);
       map.setZoom(11.5);
     }
@@ -477,13 +485,21 @@ export default function Dashboard() {
     setIsClient(true);
 
     const handleGlobalError = (event: ErrorEvent) => {
-      if (event?.message && (event.message.includes('getRootNode') || event.message.includes('ResizeObserver'))) {
+      const msg = event?.message || '';
+      if (msg.includes('getRootNode') || msg.includes('ResizeObserver') || msg.includes("reading 'get'")) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
     };
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const msg = event?.reason?.message || String(event?.reason || '');
+      if (msg.includes('getRootNode') || msg.includes("reading 'get'")) {
+        event.preventDefault();
+      }
+    };
     if (typeof window !== 'undefined') {
       window.addEventListener('error', handleGlobalError);
+      window.addEventListener('unhandledrejection', handleUnhandledRejection);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
           for (const reg of registrations) reg.unregister();
@@ -546,6 +562,7 @@ export default function Dashboard() {
 
     return () => {
       window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       clearInterval(fleetInterval);
       clearInterval(weatherTabInterval);
       clearInterval(hazardInterval);
@@ -1607,7 +1624,7 @@ export default function Dashboard() {
 
               {/* ACTIVE START & DESTINATION HUBS */}
               {availableNodes
-                .filter((node) => node.id === selectedStart || node.id === selectedEnd)
+                .filter((node) => (node.id === selectedStart || node.id === selectedEnd) && typeof node.lat === 'number' && typeof node.lng === 'number' && !isNaN(node.lat) && !isNaN(node.lng))
                 .map((node) => {
                   const isSelectedStart = node.id === selectedStart;
                   const pinBg = isSelectedStart ? '#1d4ed8' : '#b91c1c';
@@ -1644,8 +1661,8 @@ export default function Dashboard() {
                 })}
 
               {/* HAZARD CORRIDOR PINS */}
-              {currentRoutePlan?.hasHazard && routeViewMode !== 'SAFE' && currentRoutePlan.hazardsOnPrimaryRoute?.map((h: any, idx: number) => (
-                <AdvancedMarker key={`route-hazard-${idx}`} position={h.midpoint}>
+              {currentRoutePlan?.hasHazard && routeViewMode !== 'SAFE' && currentRoutePlan.hazardsOnPrimaryRoute?.filter((h: any) => h?.midpoint && typeof h.midpoint.lat === 'number' && typeof h.midpoint.lng === 'number' && !isNaN(h.midpoint.lat) && !isNaN(h.midpoint.lng)).map((h: any, idx: number) => (
+                <AdvancedMarker key={`route-hazard-${idx}`} position={{ lat: h.midpoint.lat, lng: h.midpoint.lng }}>
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -1675,7 +1692,7 @@ export default function Dashboard() {
               ))}
 
               {/* INDIVIDUAL SELECTED HAZARD PIN */}
-              {selectedHazard && (
+              {selectedHazard && typeof selectedHazard.lat === 'number' && typeof selectedHazard.lng === 'number' && !isNaN(selectedHazard.lat) && !isNaN(selectedHazard.lng) && (
                 <AdvancedMarker
                   position={{ lat: selectedHazard.lat, lng: selectedHazard.lng }}
                   onClick={() => setSelectedHazard(null)}
@@ -1709,43 +1726,53 @@ export default function Dashboard() {
               )}
 
               {/* EVALUATED CUSTOM POINT PIN */}
-              {customPrediction && (
-                <AdvancedMarker position={{ lat: customPrediction.location?.lat || customPrediction.lat, lng: customPrediction.location?.lng || customPrediction.lng }}>
-                  <div style={{
-                    backgroundColor: '#475569',
-                    color: 'white',
-                    padding: '3px 7px',
-                    borderRadius: '4px',
-                    fontSize: '0.66rem',
-                    fontWeight: 700,
-                    border: '1px solid white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    <Crosshair size={11} />
-                    <span>Sector Evaluation</span>
-                  </div>
-                </AdvancedMarker>
-              )}
+              {(() => {
+                if (!customPrediction) return null;
+                const cLat = typeof customPrediction.lat === 'number' ? customPrediction.lat : (customPrediction.location && typeof customPrediction.location.lat === 'number' ? customPrediction.location.lat : null);
+                const cLng = typeof customPrediction.lng === 'number' ? customPrediction.lng : (customPrediction.location && typeof customPrediction.location.lng === 'number' ? customPrediction.location.lng : null);
+                if (cLat === null || cLng === null || isNaN(cLat) || isNaN(cLng)) return null;
+                return (
+                  <AdvancedMarker position={{ lat: cLat, lng: cLng }}>
+                    <div style={{
+                      backgroundColor: '#475569',
+                      color: 'white',
+                      padding: '3px 7px',
+                      borderRadius: '4px',
+                      fontSize: '0.66rem',
+                      fontWeight: 700,
+                      border: '1px solid white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      <Crosshair size={11} />
+                      <span>Sector Evaluation</span>
+                    </div>
+                  </AdvancedMarker>
+                );
+              })()}
 
               {/* COMMERCIAL CONVOY VEHICLES - CENTERED 100% DEAD ON ROAD ASPHALT */}
-              {allDisplayVehicles.map((pos) => {
-                const isSelected = selectedTruck?.id === pos.id;
-                const isAlert = pos.status === 'ALERT_HAZARD_ZONE';
-                const isCaution = pos.status === 'CAUTION_MONITORED_CORRIDOR';
-                const statusColor = isAlert ? '#ea580c' : isCaution ? '#f59e0b' : '#38bdf8';
+              {allDisplayVehicles
+                .filter((pos: any) => pos && typeof pos.latitude === 'number' && typeof pos.longitude === 'number' && !isNaN(pos.latitude) && !isNaN(pos.longitude))
+                .map((pos) => {
+                  const isSelected = selectedTruck?.id === pos.id;
+                  const isAlert = pos.status === 'ALERT_HAZARD_ZONE';
+                  const isCaution = pos.status === 'CAUTION_MONITORED_CORRIDOR';
+                  const statusColor = isAlert ? '#ea580c' : isCaution ? '#f59e0b' : '#38bdf8';
 
-                return (
-                  <AdvancedMarker
-                    key={pos.id}
-                    position={{ lat: pos.latitude, lng: pos.longitude }}
-                    onClick={() => {
-                      setSelectedTruck(pos);
-                      setMapTarget({ lat: pos.latitude, lng: pos.longitude });
-                    }}
-                  >
+                  return (
+                    <AdvancedMarker
+                      key={pos.id}
+                      position={{ lat: pos.latitude, lng: pos.longitude }}
+                      onClick={() => {
+                        setSelectedTruck(pos);
+                        if (typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
+                          setMapTarget({ lat: pos.latitude, lng: pos.longitude });
+                        }
+                      }}
+                    >
                     <div style={{
                       position: 'relative',
                       width: '0px',

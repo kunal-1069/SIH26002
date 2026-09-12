@@ -3,7 +3,10 @@ const router = express.Router();
 const { driver } = require('../db/neo4j');
 const { sendHazardAlert } = require('../services/email');
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+let ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+if (!ML_SERVICE_URL.startsWith('http')) {
+    ML_SERVICE_URL = `http://${ML_SERVICE_URL}`;
+}
 
 async function fetchCorridorLiveWeather(midLat = 26.1445, midLng = 91.7362, corridorName = "Route Corridor") {
   try {
@@ -145,7 +148,7 @@ router.get('/nodes', async (req, res) => {
 
 // POST /api/route/calculate - Calculate primary route, detect hazards, and suggest safe alternative route
 router.post('/calculate', async (req, res) => {
-  let { startNode, endNode } = req.body;
+  let { startNode, endNode, email } = req.body;
   if (!startNode) startNode = 'GAU';
   if (!endNode) endNode = 'SHL';
 
@@ -430,6 +433,7 @@ router.post('/calculate', async (req, res) => {
       
       // FIRE BACKGROUND EMAIL ALERT
       sendHazardAlert(
+        email,
         alertMessage, 
         recommendation, 
         { name: `Primary Route (${primNodeNames.join(' ➔ ')})` },

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { driver } = require('../db/neo4j');
 const { sendHazardAlert } = require('../services/email');
+const { BUILTIN_NODES, getBuiltinRoads, dijkstraShortestPath, nodeMap } = require('../db/roadNetworkFallback');
 
 let ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 if (!ML_SERVICE_URL.startsWith('http')) {
@@ -121,29 +122,32 @@ async function getRoadAttachedGeometry(coords) {
 
 // GET /api/route/nodes - Return all available locations in the network
 router.get('/nodes', async (req, res) => {
-  const session = driver.session();
   try {
-    const result = await session.run(`
-      MATCH (l:Location)
-      RETURN l.id AS id, l.name AS name, l.state AS state, l.lat AS lat, l.lng AS lng
-      ORDER BY l.name ASC
-    `);
+    const session = driver.session();
+    try {
+      const result = await session.run(`
+        MATCH (l:Location)
+        RETURN l.id AS id, l.name AS name, l.state AS state, l.lat AS lat, l.lng AS lng
+        ORDER BY l.name ASC
+      `);
 
-    const nodes = result.records.map(r => ({
-      id: r.get('id'),
-      name: r.get('name'),
-      state: r.get('state') || '',
-      lat: r.get('lat'),
-      lng: r.get('lng')
-    }));
-
-    res.json({ nodes });
+      if (result.records && result.records.length > 0) {
+        const nodes = result.records.map(r => ({
+          id: r.get('id'),
+          name: r.get('name'),
+          state: r.get('state') || '',
+          lat: r.get('lat'),
+          lng: r.get('lng')
+        }));
+        return res.json({ nodes });
+      }
+    } finally {
+      await session.close();
+    }
   } catch (err) {
-    console.error("Failed to fetch nodes:", err);
-    res.status(500).json({ error: "Failed to fetch routing nodes" });
-  } finally {
-    await session.close();
+    console.warn("Neo4j offline for nodes, using high-availability built-in NER network:", err.message);
   }
+  return res.json({ nodes: BUILTIN_NODES });
 });
 
 // POST /api/route/calculate - Calculate primary route, detect hazards, and suggest safe alternative route
@@ -152,10 +156,11 @@ router.post('/calculate', async (req, res) => {
   if (!startNode) startNode = 'GAU';
   if (!endNode) endNode = 'SHL';
 
-  const session = driver.session();
+  let session = null;
+  let uniqueRoads = [];
 
   try {
-    // 1. Get all roads from Neo4j
+    session = driver.session();
     const roadsResult = await session.run(`
       MATCH (a:Location)-[r:CONNECTED_TO]->(b:Location)
       RETURN DISTINCT r.road_id AS id, r.historical_incidents AS incidents, r.road_quality AS quality,
@@ -164,33 +169,42 @@ router.post('/calculate', async (req, res) => {
              r.base_time AS baseTime, r.distance AS distance
     `);
 
-    const uniqueRoads = [];
     const seenRoadIds = new Set();
-
     roadsResult.records.forEach(record => {
       const id = record.get('id');
-      const data = {
-        id,
-        incidents: record.get('incidents'),
-        quality: record.get('quality'),
-        fromId: record.get('fromId'),
-        fromName: record.get('fromName'),
-        fromLat: record.get('fromLat'),
-        fromLng: record.get('fromLng'),
-        toId: record.get('toId'),
-        toName: record.get('toName'),
-        toLat: record.get('toLat'),
-        toLng: record.get('toLng'),
-        baseTime: record.get('baseTime'),
-        distance: record.get('distance')
-      };
-
       if (!seenRoadIds.has(id)) {
         seenRoadIds.add(id);
-        uniqueRoads.push(data);
+        uniqueRoads.push({
+          id,
+          incidents: record.get('incidents'),
+          quality: record.get('quality'),
+          fromId: record.get('fromId'),
+          fromName: record.get('fromName'),
+          fromLat: record.get('fromLat'),
+          fromLng: record.get('fromLng'),
+          toId: record.get('toId'),
+          toName: record.get('toName'),
+          toLat: record.get('toLat'),
+          toLng: record.get('toLng'),
+          baseTime: record.get('baseTime'),
+          distance: record.get('distance')
+        });
       }
     });
+  } catch (err) {
+    console.warn("Neo4j offline for road query, switching to in-memory graph:", err.message);
+    if (session) {
+      try { await session.close(); } catch (_) {}
+      session = null;
+    }
+  }
 
+  // Fallback to built-in road network if Neo4j returned 0 roads
+  if (uniqueRoads.length === 0) {
+    uniqueRoads = getBuiltinRoads();
+  }
+
+  try {
     // 2. Fetch Live Weather & Query ML Risk predictions for all corridors
     const corridorWeather = await fetchCorridorLiveWeather();
     const severity = corridorWeather.severity;
@@ -235,86 +249,127 @@ router.post('/calculate', async (req, res) => {
           ? (road.baseTime * 10 + 600) 
           : (road.baseTime * (mlData.risk_multiplier || 1.0));
 
-        // 3. Update Neo4j graph with penalized travel time and hazard metrics
-        await session.run(`
-          MATCH ()-[r:CONNECTED_TO {road_id: $roadId}]->()
-          SET r.current_time = $penaltyTime,
-              r.landslide_prob = $lsProb,
-              r.flood_prob = $flProb,
-              r.hazard_status = $hazardStatus,
-              r.is_blocked = $isBlocked
-        `, {
-          roadId: road.id,
-          penaltyTime,
-          lsProb: mlData.landslide_probability || 0,
-          flProb: mlData.flood_probability || 0,
-          hazardStatus: isBlocked ? 'BLOCKED_HAZARD' : (mlData.status || 'Normal'),
-          isBlocked
-        });
+        road.current_time = penaltyTime;
+        road.is_blocked = isBlocked;
+
+        // 3. If Neo4j session is alive, update graph with penalized travel time
+        if (session) {
+          try {
+            await session.run(`
+              MATCH ()-[r:CONNECTED_TO {road_id: $roadId}]->()
+              SET r.current_time = $penaltyTime,
+                  r.landslide_prob = $lsProb,
+                  r.flood_prob = $flProb,
+                  r.hazard_status = $hazardStatus,
+                  r.is_blocked = $isBlocked
+            `, {
+              roadId: road.id,
+              penaltyTime,
+              lsProb: mlData.landslide_probability || 0,
+              flProb: mlData.flood_probability || 0,
+              hazardStatus: isBlocked ? 'BLOCKED_HAZARD' : (mlData.status || 'Normal'),
+              isBlocked
+            });
+          } catch (_) {}
+        }
       } catch (err) {
         console.error(`Failed to update risk for road ${road.id}:`, err.message);
+        road.current_time = road.baseTime;
       }
     }
 
-    // 4. Project both base_time and current_time in GDS
-    await session.run(`
-      CALL gds.graph.drop('roadNetwork', false) YIELD graphName;
-    `);
+    let primNodeIds, primNodeNames, primLats, primLngs, primTotalCost;
+    let safeNodeIds, safeNodeNames, safeLats, safeLngs, safeTotalCost;
+    let usedNeo4jDijkstra = false;
 
-    await session.run(`
-      CALL gds.graph.project(
-        'roadNetwork',
-        'Location',
-        'CONNECTED_TO',
-        {
-          relationshipProperties: ['base_time', 'current_time', 'distance']
+    if (session) {
+      try {
+        await session.run(`CALL gds.graph.drop('roadNetwork', false) YIELD graphName;`);
+        await session.run(`
+          CALL gds.graph.project(
+            'roadNetwork',
+            'Location',
+            'CONNECTED_TO',
+            { relationshipProperties: ['base_time', 'current_time', 'distance'] }
+          )
+        `);
+
+        const primaryResult = await session.run(`
+          MATCH (source:Location {id: $startNode}), (target:Location {id: $endNode})
+          CALL gds.shortestPath.dijkstra.stream('roadNetwork', {
+            sourceNode: source,
+            targetNode: target,
+            relationshipWeightProperty: 'distance'
+          })
+          YIELD totalCost, nodeIds
+          RETURN
+            totalCost,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodeIdsList,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).name] AS nodeNames,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).lat] AS lats,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).lng] AS lngs
+        `, { startNode, endNode });
+
+        const safeResult = await session.run(`
+          MATCH (source:Location {id: $startNode}), (target:Location {id: $endNode})
+          CALL gds.shortestPath.dijkstra.stream('roadNetwork', {
+            sourceNode: source,
+            targetNode: target,
+            relationshipWeightProperty: 'current_time'
+          })
+          YIELD totalCost, nodeIds
+          RETURN
+            totalCost,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodeIdsList,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).name] AS nodeNames,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).lat] AS lats,
+            [nodeId IN nodeIds | gds.util.asNode(nodeId).lng] AS lngs
+        `, { startNode, endNode });
+
+        if (primaryResult.records.length > 0) {
+          const primRec = primaryResult.records[0];
+          primNodeIds = primRec.get('nodeIdsList');
+          primNodeNames = primRec.get('nodeNames');
+          primLats = primRec.get('lats');
+          primLngs = primRec.get('lngs');
+          primTotalCost = primRec.get('totalCost');
+
+          if (safeResult.records.length > 0) {
+            const safeRec = safeResult.records[0];
+            safeNodeIds = safeRec.get('nodeIdsList');
+            safeNodeNames = safeRec.get('nodeNames');
+            safeLats = safeRec.get('lats');
+            safeLngs = safeRec.get('lngs');
+            safeTotalCost = safeRec.get('totalCost');
+          }
+          usedNeo4jDijkstra = true;
         }
-      )
-    `);
-
-    // 5. Calculate Primary (Direct Shortest Distance) Route using distance
-    const primaryResult = await session.run(`
-      MATCH (source:Location {id: $startNode}), (target:Location {id: $endNode})
-      CALL gds.shortestPath.dijkstra.stream('roadNetwork', {
-        sourceNode: source,
-        targetNode: target,
-        relationshipWeightProperty: 'distance'
-      })
-      YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path
-      RETURN
-        totalCost,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodeIdsList,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).name] AS nodeNames,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).lat] AS lats,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).lng] AS lngs
-    `, { startNode, endNode });
-
-    // 6. Calculate Safe (Hazard-Avoidant) Route using penalized current_time
-    const safeResult = await session.run(`
-      MATCH (source:Location {id: $startNode}), (target:Location {id: $endNode})
-      CALL gds.shortestPath.dijkstra.stream('roadNetwork', {
-        sourceNode: source,
-        targetNode: target,
-        relationshipWeightProperty: 'current_time'
-      })
-      YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path
-      RETURN
-        totalCost,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).id] AS nodeIdsList,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).name] AS nodeNames,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).lat] AS lats,
-        [nodeId IN nodeIds | gds.util.asNode(nodeId).lng] AS lngs
-    `, { startNode, endNode });
-
-    if (primaryResult.records.length === 0) {
-      return res.status(404).json({ error: "No primary path found between selected locations." });
+      } catch (gdsErr) {
+        console.warn("Neo4j GDS unavailable, using high-performance in-memory Dijkstra engine:", gdsErr.message);
+      }
     }
 
-    const primRec = primaryResult.records[0];
-    const primNodeIds = primRec.get('nodeIdsList');
-    const primNodeNames = primRec.get('nodeNames');
-    const primLats = primRec.get('lats');
-    const primLngs = primRec.get('lngs');
+    if (!usedNeo4jDijkstra) {
+      // In-Memory Dijkstra calculations with real XGBoost weights
+      const primPath = dijkstraShortestPath(startNode, endNode, uniqueRoads, 'distance');
+      if (!primPath) {
+        return res.status(404).json({ error: "No primary path found between selected locations." });
+      }
+      primNodeIds = primPath.nodeIdsList;
+      primNodeNames = primPath.nodeNames;
+      primLats = primPath.lats;
+      primLngs = primPath.lngs;
+      primTotalCost = primPath.totalCost;
+
+      const safePath = dijkstraShortestPath(startNode, endNode, uniqueRoads, 'current_time');
+      if (safePath) {
+        safeNodeIds = safePath.nodeIdsList;
+        safeNodeNames = safePath.nodeNames;
+        safeLats = safePath.lats;
+        safeLngs = safePath.lngs;
+        safeTotalCost = safePath.totalCost;
+      }
+    }
 
     let cleanPrimTime = 0;
     for (let i = 0; i < primNodeIds.length - 1; i++) {
@@ -344,7 +399,6 @@ router.post('/calculate', async (req, res) => {
         const lsProb = hazard.landslide_probability || 0;
         const flProb = hazard.flood_probability || 0;
         const multiplier = hazard.risk_multiplier || 1.0;
-        // True hazard detection: only flag when ML models predict landslide or flood occurrence (>= 45%), multiplier >= 2.4, or high hazard level
         const isHazardous = lsProb >= 0.45 || flProb >= 0.45 || 
           multiplier >= 2.4 ||
           hazard.landslide_hazard_level === 'High' ||
@@ -385,14 +439,7 @@ router.post('/calculate', async (req, res) => {
     let safeTimeMinutes = primBaseTime;
     let isDiverted = false;
 
-    if (safeResult.records.length > 0) {
-      const safeRec = safeResult.records[0];
-      const safeNodeIds = safeRec.get('nodeIdsList');
-      const safeNodeNames = safeRec.get('nodeNames');
-      const safeLats = safeRec.get('lats');
-      const safeLngs = safeRec.get('lngs');
-
-      // Compute actual clean transit time on the safe path
+    if (safeNodeIds && safeNodeIds.length > 0) {
       let cleanTransitTime = 0;
       for (let i = 0; i < safeNodeIds.length - 1; i++) {
         const u = safeNodeIds[i];
@@ -513,7 +560,11 @@ router.post('/calculate', async (req, res) => {
     console.error('Error calculating route:', error);
     res.status(500).json({ error: 'Failed to calculate route and hazard assessment', details: error.message });
   } finally {
-    await session.close();
+    if (session) {
+      try {
+        await session.close();
+      } catch (_) {}
+    }
   }
 });
 
